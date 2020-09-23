@@ -32,21 +32,20 @@ public:
     
 private:
     
-    std::vector<G4VPhysicalVolume*> pLoop;
+    std::vector<G4VPhysicalVolume*> physFibers;
     
     std::vector<G4double> fx;
     std::vector<G4double> fy;
     std::vector<G4double> fz;
     
-    std::vector<G4Tubs*> sLoop;
+    // std::vector<G4Tubs*> sLoop; // Vector of solids containing cylindrical fibers
     std::vector<G4LogicalVolume*> lLoop; // Vector of logical volumes containing chromosome territories
     std::vector<G4LogicalVolume*> lmLoop; // Vector of logical volumes containing chromosome territories
     
     G4bool fBuildBases;
     
-
-    
-
+    G4int fMaxNumFibers;
+    G4int fNumFibers;  
 };
 
 #endif
