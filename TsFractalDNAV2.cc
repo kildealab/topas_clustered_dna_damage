@@ -1,14 +1,8 @@
 // Component for TsFractalDNAV2
 //
-// ********************************************************************
-// *                                                                  *
-// * This file is part of the TOPAS-nBio extensions to the            *
-// *   TOPAS Simulation Toolkit.                                      *
-// * The TOPAS-nBio extensions are freely available under the license *
-// *   agreement set forth at: https://topas-nbio.readthedocs.io/     *
-// *                                                                  *
-// ********************************************************************
-//
+//**************************************************************************************************
+// Create a nuclear volume containing chromatin fibres arranged in a fractal pattern.
+//**************************************************************************************************
 
 #include "TsFractalDNAV2.hh"
 
@@ -50,7 +44,8 @@ TsFractalDNAV2::TsFractalDNAV2(TsParameterManager* pM, TsExtensionManager* eM, T
 TsVGeometryComponent(pM, eM, mM, gM, parentComponent, parentVolume, name)
 {
     ResolveParameters();
-    fGeoManager = new GeoManagerV2(0, 1.); // parameters for verbosity & scaling ffactor
+    // fGeoManager = new GeoManagerV2(0, 0.7); // parameters for verbosity & scaling ffactor
+    fGeoManager = new GeoManagerV2(0, 1.0); // parameters for verbosity & scaling ffactor
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -154,17 +149,18 @@ G4VPhysicalVolume* TsFractalDNAV2::Construct()
 {
 	BeginConstruction();
 
-    /**************************************************************************/
-    //                 Wrapper: Nucleus
-    /**************************************************************************/
-    
-    G4Ellipsoid* fEnvelopeSolid = new G4Ellipsoid("nucl", 6*um, 4*um, 11*um); // Parameterize this
+    //----------------------------------------------------------------------------------------------
+    // Nucleus (envelope)
+    //----------------------------------------------------------------------------------------------
+    G4double* nucleusDimensions = fPm->GetDoubleVector(GetFullParmName("Dimensions"),"Length");
+
+    G4Ellipsoid* fEnvelopeSolid = new G4Ellipsoid("nucl", nucleusDimensions[0], nucleusDimensions[1], nucleusDimensions[2]); // 6*um, 4*um, 11*um
     fEnvelopeLog= CreateLogicalVolume(fEnvelopeSolid);
     fEnvelopePhys = CreatePhysicalVolume(fEnvelopeLog);
 
-    /**************************************************************************/
-    //                 Subcomponent: chromatin fibers
-    /**************************************************************************/
+    //----------------------------------------------------------------------------------------------
+    // Chromatin fibres
+    //----------------------------------------------------------------------------------------------
     
     // Define fibre dimensions (scale xyz coordinates by desired fibre length)
     G4double fiberRadius = fPm->GetDoubleParameter(GetFullParmName("FiberRadius"), "Length"); // 12 nm
@@ -184,12 +180,19 @@ G4VPhysicalVolume* TsFractalDNAV2::Construct()
     //----------------------------------------------------------------------------------------------
     // if (fBuildBases){
     auto start = std::chrono::high_resolution_clock::now();
+    G4int numBpPerNucleosome = fPm->GetIntegerParameter(GetFullParmName("DNANumBpPerNucleosome"));
+    G4int numNucleosomePerFiber = fPm->GetIntegerParameter(GetFullParmName("DnaNumNucleosomePerFiber"));
+    fGeoManager->Initialize(numBpPerNucleosome,numNucleosomePerFiber);
+    // fGeoManager->Initialize(2,12);
     // fGeoManager->Initialize();
     auto finish = std::chrono::high_resolution_clock::now();
     std:chrono::duration<double> elapsed = finish-start;
     // G4cout << "Time to Initialize GeoManager: " << elapsed.count() << " s" << G4endl;  
     // start = std::chrono::high_resolution_clock::now();  
-    // G4LogicalVolume* lFiber = fGeoManager->BuildLogicFiber(true);
+    G4LogicalVolume* lFiber;
+    if (fBuildBases){
+        lFiber = fGeoManager->BuildLogicFiber(true);
+    }
     // finish = std::chrono::high_resolution_clock::now();
     // elapsed = finish-start;
     // G4cout << "Time to build logic fiber: " << elapsed.count() << " s" << G4endl;  
@@ -258,6 +261,17 @@ G4VPhysicalVolume* TsFractalDNAV2::Construct()
             G4double midpoint_x = (fx[i]+fx[i-1])/2*scaleFactor;
             G4double midpoint_y = (fy[i]+fy[i-1])/2*scaleFactor;
             G4double midpoint_z = (fz[i]+fz[i-1])/2*scaleFactor;
+
+            // if (fx[i] != fx[i-1]) {
+            //     midpoint_x -= (14*nm)/2;
+            // }
+            // if (fy[i] != fy[i-1]) {
+            //     midpoint_y -= (14*nm)/2;
+            // }
+            // if (fz[i] != fz[i-1]) {
+            //     midpoint_z -= (14*nm)/2;
+            // }
+
             G4ThreeVector midpoint = G4ThreeVector(midpoint_x,midpoint_y,midpoint_z+zshift);
 
             //--------------------------------------------------------------------------------------
@@ -285,23 +299,30 @@ G4VPhysicalVolume* TsFractalDNAV2::Construct()
             start = std::chrono::high_resolution_clock::now();   
 
             G4String phys_name = "fibre_" + std::to_string(i);
+            // physFiber = CreatePhysicalVolume(phys_name,
+            //                                 logicalFiber,
+            //                                 fEnvelopePhys);
             physFibers[i] = CreatePhysicalVolume(phys_name,
                                             i,
                                             true,
                                             logicalFiber,
                                             transformLoop,
                                             fEnvelopePhys);
+
          
             finish = std::chrono::high_resolution_clock::now();
             elapsed = finish-start;
 
+            if (i == 10 || i == 100 || i == 1000 || i == 10000 || i == 20000 || i == 40000 || i == 60000 || i == 80000 || i == 100000 || i == 140000 || i == 171000){ 
+                G4cout << "Building fiber #" << i << G4endl;
+            }
             // G4cout << "Time to create G4PVPlacement & assign vis attributes " << elapsed.count() << " s" << G4endl;
             // G4cout << elapsed.count() << G4endl;   
-            if (i == 3 || i == 100 || i == 1000 || i == 10000 || i == 20000 || i == 40000 || i == 60000 || i == 80000 || i == 100000 || i == 171000){ 
-                G4cout << "--------------------------------" << G4endl;
-                G4cout << i << G4endl;
-                G4cout << elapsed.count() << G4endl;
-            }
+            // if (i == 3 || i == 100 || i == 1000 || i == 10000 || i == 20000 || i == 40000 || i == 60000 || i == 80000 || i == 100000 || i == 171000){ 
+            //     G4cout << "--------------------------------" << G4endl;
+            //     G4cout << i << G4endl;
+            //     G4cout << elapsed.count() << G4endl;
+            // }
             
 
             //--------------------------------------------------------------------------------------
@@ -309,7 +330,7 @@ G4VPhysicalVolume* TsFractalDNAV2::Construct()
             // outside of loop
             //--------------------------------------------------------------------------------------
             
-            // if (fBuildBases){
+            if (fBuildBases){
 
             //     // fGeoManager->Initialize();
             
@@ -320,13 +341,13 @@ G4VPhysicalVolume* TsFractalDNAV2::Construct()
             //     // G4cout << "Time to build logic fiber: " << elapsed.count() << " s" << G4endl;     
             
             //     start = std::chrono::high_resolution_clock::now();  
-            //     G4VPhysicalVolume* pFiber = CreatePhysicalVolume("Fiber", lFiber, physFibers[i]);
+                G4VPhysicalVolume* pFiber = CreatePhysicalVolume("Fiber", lFiber, physFibers[i]);
             //     finish = std::chrono::high_resolution_clock::now();
             //     elapsed = finish-start;
             //     // G4cout << "Time to create pfiber physical volume: " << elapsed.count() << " s" << G4endl;     
             //     G4cout << elapsed.count() << G4endl;     
 
-            // }
+            }
         
         }
         auto loopfinish = std::chrono::high_resolution_clock::now();

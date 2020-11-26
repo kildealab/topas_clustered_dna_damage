@@ -1,13 +1,6 @@
-//
-// ********************************************************************
-// *                                                                  *
-// * This file is part of the TOPAS-nBio extensions to the            *
-// *   TOPAS Simulation Toolkit.                                      *
-// * The TOPAS-nBio extensions are freely available under the license *
-// *   agreement set forth at: https://topas-nbio.readthedocs.io/     *
-// *                                                                  *
-// ********************************************************************
-//
+//**************************************************************************************************
+// Create a nuclear volume containing chromatin fibres arranged in a fractal pattern.
+//**************************************************************************************************
 
 #ifndef TsFractalDNAV2_hh
 #define TsFractalDNAV2_hh
@@ -19,13 +12,25 @@
 class TsFractalDNAV2 : public TsVGeometryComponent
 {    
 public:
-	TsFractalDNAV2(TsParameterManager* pM, TsExtensionManager* eM, TsMaterialManager* mM, TsGeometryManager* gM,
-				  TsVGeometryComponent* parentComponent, G4VPhysicalVolume* parentVolume, G4String& name);
-	~TsFractalDNAV2();
+	TsFractalDNAV2(TsParameterManager* pM, TsExtensionManager* eM, TsMaterialManager* mM,
+                   TsGeometryManager* gM, TsVGeometryComponent* parentComponent, 
+                   G4VPhysicalVolume* parentVolume, G4String& name);
+	
+    ~TsFractalDNAV2();
     
     GeoManagerV2* fGeoManager;
 	
+    //--------------------------------------------------------------------------------------------------
+    // Handle parameters defined in the Topas parameter file
+    // Read fiber coordinates from a data file
+    //--------------------------------------------------------------------------------------------------
     void ResolveParameters();
+
+    //----------------------------------------------------------------------------------------------
+    // Mandatory method of TSVGeometryComponent to create solids, logical volumes, and physical
+    // volumes. Primary Logical Volume, fEnvelopeLog, is defined as the nucleus, which may be
+    // accessed in the  parameter file as Ge/MyDNA.
+    //----------------------------------------------------------------------------------------------
 	G4VPhysicalVolume* Construct();
     
     std::vector<G4ThreeVector> GetSugar1Info();
@@ -33,6 +38,7 @@ public:
 private:
     
     std::vector<G4VPhysicalVolume*> physFibers;
+    G4VPhysicalVolume* physFiber;
     
     std::vector<G4double> fx;
     std::vector<G4double> fy;

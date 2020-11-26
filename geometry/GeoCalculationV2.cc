@@ -1,19 +1,19 @@
 // Extra Class for TsFiber
 //
-// ********************************************************************
-// *                                                                  *
-// * This file is part of the TOPAS-nBio extensions to the            *
-// *   TOPAS Simulation Toolkit.                                      *
-// * The TOPAS-nBio extensions are freely available under the license *
-// *   agreement set forth at: https://topas-nbio.readthedocs.io/     *
-// *                                                                  *
-// ********************************************************************
-//
+//**************************************************************************************************
+// This class performs the calculations necessary for placing nucleotide base pairs and nucloesomes.
+// The size of the individual volumes comprising nucleotides and histones are defined using the
+// Initialize() function. CalculateNucleosomePosition() and CalculateDNAPosition() are used to
+// place three "basis" nucleosomes and their accompanying 200 bp each (incl linker DNA).
+//**************************************************************************************************
 
 #include "GeoCalculationV2.hh"
 
 #include "G4ios.hh"
 
+//--------------------------------------------------------------------------------------------------
+// Structure containting coordinates of volumes in a DNA base pair.
+//--------------------------------------------------------------------------------------------------
 struct DNAPlacementData
 {
     //G4RotationMatrix *rotPosMat;
@@ -28,12 +28,19 @@ struct DNAPlacementData
     G4ThreeVector posSugarTMP2;
 };
 
+//--------------------------------------------------------------------------------------------------
+// Constructor. Paramters used to set (i) verbosity of console output and (ii) a scaling factor on
+// the size of all geometry components (should be 1 for most purposes).
+//--------------------------------------------------------------------------------------------------
 GeoCalculationV2::GeoCalculationV2(G4int verbose, G4double factor) :
     fVerbose(verbose), fFactor(factor)
 {
 
 }
 
+//--------------------------------------------------------------------------------------------------
+// Destructor. Delete variables allocated with new.
+//--------------------------------------------------------------------------------------------------
 GeoCalculationV2::~GeoCalculationV2()
 {
     // Free the memory
@@ -43,13 +50,18 @@ GeoCalculationV2::~GeoCalculationV2()
     delete fPosAndRadiusMap;
 }
 
+//--------------------------------------------------------------------------------------------------
+// Initialize the GeoCalculation object by setting up all the geometrical parameters.
+//--------------------------------------------------------------------------------------------------
 void GeoCalculationV2::Initialize()
 {
-    //***************************************
-    // Elementary informations
-    //***************************************
-
-    //fFactor 1 vol eq
+    //----------------------------------------------------------------------------------------------
+    // Define volume parameters for a nucleotide, including hydration shell. A scaling factor is
+    // applied to all volumes to define the corresponding hydration shell volumes (factor = 1.7).
+    // Note:
+    // THF = deoxyribose
+    // TMP = phosphate
+    //----------------------------------------------------------------------------------------------
     fSugarTMPRadius = (0.270e-9)*fFactor*m;
     fSugarTHFRadius = (0.290e-9)*fFactor*m;
     //G4double ratio = 1.7;
@@ -68,44 +80,30 @@ void GeoCalculationV2::Initialize()
     fPosSugarTMP2 = G4ThreeVector(-0.944741*fFactor*nm,-0.0830581*fFactor*nm,0.218929*fFactor*nm);
 
 
-    //***************************************
-    //***************************************
-    // Calculation parameters
-    //***************************************
-    //***************************************
-
-    //***************************************
-    // Fiber parameters
-    //***************************************
-
+    //----------------------------------------------------------------------------------------------
+    // Fiber parameters. I.e. helical arrangment of nucleosomes in a fiber.
+    //----------------------------------------------------------------------------------------------
     fHistoneNum = 3; // should be 3 because the others are generated through rotations (see Construct() )
     fHistoneRadius = 2.4*fFactor*nm; //2.860*fFactor*nm;
     fHistoneHeight = 2.860*fFactor*nm; //2.860*fFactor*nm;
-
-    // Histone helix parameters
-    //
-    fFiberPitch = 10*fFactor*nm;//fFiberPitch = 7.740*fFactor*nm;//fFiberPitch = 4.740*fFactor*nm;
-    fFiberCentralRadius = 10.460*fFactor*nm;
+    fFiberPitch = 8.5*fFactor*nm; // pitch is height of 1 complete turn of helix
+    fFiberCentralRadius = 10.460*fFactor*nm; // radius of fiber
     fFiberNbNuclPerTurn = 6;
     fFiberDeltaAngle = 360./fFiberNbNuclPerTurn *deg;
 
-    //***************************************
-    // DNA around histone parameters
-    //***************************************
-
+    //----------------------------------------------------------------------------------------------
+    // Nucleosome parameters. I.e. helical arrangement of nucleotide base pairs around a histone.
+    //----------------------------------------------------------------------------------------------
     bpNumAroundHistone = 154; //const G4int bpNumAroundHistone = 154;
-
-    angleBpAroundHistone = 36*deg;
-
-    // Second helix parameters (big simple helix)
+    angleBpAroundHistone = 36*deg; // Not quite sure what this is. Angular displacement from 1 bp to the next?
     secondHelixPitch = 2.370*fFactor*nm;
     centralRadius = 4.045*fFactor*nm;
-    nbBasePairPerTurn = 77;
+    nbBasePairPerTurn = 77; // two helical turns of bp around the histone
     deltaAngle = 360./nbBasePairPerTurn *deg;
 
-    //***************************************
-    // DNA linker parameters
-    //***************************************
+    //----------------------------------------------------------------------------------------------
+    // Linker DNA parameters. Linker DNA connects one nucleosome to the next.
+    //----------------------------------------------------------------------------------------------
     // Schema:
     //
     //nucleosome ---(straight part)-----\(
@@ -114,7 +112,6 @@ void GeoCalculationV2::Initialize()
     //                                     \----(straight part)---- nucleosome
 
     bpNumForLinker = 46; //const G4int bpNumForLinker = 46;
-
     linkerCentralRadius = 14.505*fFactor*nm;
     // 2*0.01*15 is: 2 straight parts * 0.01 heigth per base in these parts * 15 bp in one straight part.
     // 3.555 is the height per base in the curved part.
@@ -123,9 +120,9 @@ void GeoCalculationV2::Initialize()
     nbBasePairPerTurnForLinker = 46; // do not change
     deltaLinkerAngle = 60./nbBasePairPerTurnForLinker *deg;
 
-    //***************************************
-    // Generate the positions
-    //***************************************
+    //----------------------------------------------------------------------------------------------
+    // Generate the positional information using the parameters defined above.
+    //----------------------------------------------------------------------------------------------
 
     fPosNucleo = CalculateNucleosomePosition(fHistoneNum);
 
@@ -133,10 +130,9 @@ void GeoCalculationV2::Initialize()
 
     fPosAndRadiusMap = GenerateCoordAndRadiusMap(fPosDNA);
 
-    //***************************************
-    // Output informations
-    //***************************************
-
+    //----------------------------------------------------------------------------------------------
+    // Output information according to verbosity setting.
+    //----------------------------------------------------------------------------------------------
     if(fVerbose>0)
     {
         G4cout<<"********************************"<<G4endl;
@@ -196,6 +192,114 @@ void GeoCalculationV2::Initialize()
     }
 }
 
+
+//--------------------------------------------------------------------------------------------------
+// Calculate nucleosome positions for basis nucleosomes. Remaining nucleosome positions can be 
+// established by translating & rotating these three basis positions.
+// Note the number of basis nucleosomes (i.e. nucleoNum) is 3 for typical use.
+// Returns a pointer to a vector of size nucleoNum (3), with each element containing a G4ThreeVector
+// of the spatial coordinates for 1 of the basis nucleosomes.
+//--------------------------------------------------------------------------------------------------
+std::vector<G4ThreeVector>* GeoCalculationV2::CalculateNucleosomePosition(G4int nucleoNum)
+{
+    // Vector to fill and to output (pointer to vector of G4 coordinates)
+    std::vector<G4ThreeVector>* posNucleoData = new std::vector<G4ThreeVector>(nucleoNum);
+
+    // Reserve vector sizes so reallocation not needed as add elements
+    fFiberHelixMatVect.reserve(nucleoNum);
+    fRotFiberMatVect.reserve(nucleoNum);
+
+    // Histone start coord (add something in z because of the super helix not zero centered)
+    G4double histoneMat[1][3] = {{0.,0.,2.370*fFactor*nm}};
+
+    // iterate over each nucleosome
+    for(int n=0;n<nucleoNum;++n)
+    {
+        // xyz spatial coordinates of nucleosome
+        G4double fiberHelixMat[3];
+        fiberHelixMat[0] = fFiberCentralRadius*cos(n*fFiberDeltaAngle/rad); // x
+        fiberHelixMat[1] = fFiberCentralRadius*sin(n*fFiberDeltaAngle/rad); // y
+        fiberHelixMat[2] = n*fFiberPitch/fFiberNbNuclPerTurn; // z
+
+        // Save the xyz matrix to fFiberHelixMatVect for use in CalculateDNAPosition()
+        fFiberHelixMatVect.push_back(std::vector<G4double>() );
+        fFiberHelixMatVect[n].push_back(fiberHelixMat[0]);
+        fFiberHelixMatVect[n].push_back(fiberHelixMat[1]);
+        fFiberHelixMatVect[n].push_back(fiberHelixMat[2]);
+
+        // Rotation matrix (Rz) for placement inside the fiber.
+        // We must rotate the objects first and then place them.
+        // Unsure of details here.
+        G4double rotFiberMat[3][3];
+        // x0, y0, z0
+        rotFiberMat[0][0] = cos(n*-fFiberDeltaAngle/rad);
+        rotFiberMat[0][1]=-sin(n*-fFiberDeltaAngle/rad);
+        rotFiberMat[0][2]=0;
+        // x1, y1, z1
+        rotFiberMat[1][0] = sin(n*-fFiberDeltaAngle/rad);
+        rotFiberMat[1][1]=cos(n*-fFiberDeltaAngle/rad);
+        rotFiberMat[1][2]=0; 
+        // x2, y2, z2
+        rotFiberMat[2][0] = 0;
+        rotFiberMat[2][1]=0;
+        rotFiberMat[2][2]=1; 
+
+        // Save the matrix to fRotFiberMatVect for use in CalculateDNAPosition()
+        fRotFiberMatVect.push_back(std::vector<std::vector<G4double> >() );
+        for(int line=0;line<3;++line)
+        {
+            fRotFiberMatVect[n].push_back(std::vector<G4double>() );
+
+            for(int column=0;column<3;++column)
+            {
+                fRotFiberMatVect[n][line].push_back(rotFiberMat[line][column]);
+            }
+        }
+
+
+        // Fiber part
+        G4double histoneHelixFMat[1][3] = {};
+
+        // Matrix product to rotate
+        // iterate on each line of output matrix+
+        for(int line=0;line<1;line++)
+        {
+            // iterate on each column of output matrix
+            for(int column=0;column<3;column++)
+            {
+                // iterate to do the sum
+                for(int p=0;p<3;++p)
+                {
+                    histoneHelixFMat[line][column] += histoneMat[line][p]*rotFiberMat[p][column];
+                }
+            }
+        }
+
+        // Add the coord of the helix
+        for(int line=0;line<1;++line)
+        {
+            for(int column=0;column<3;++column)
+            {
+                histoneHelixFMat[line][column] += fiberHelixMat[column];
+            }
+        }
+
+        // fill the output vector
+        posNucleoData->at(n) = G4ThreeVector(histoneHelixFMat[0][0],histoneHelixFMat[0][1],histoneHelixFMat[0][2]);
+    }
+
+    return posNucleoData;
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// Calculate positions of nucleotide volumes around the basis hisotone volumes (3).
+// Fills and returns pointer to DNAPosData object, which is a 2D vector of DNAPlacementData objects.
+//      outer index i : spans nucleosomes (1 to 3)
+//      inner index j : spans all bp in that nucleosome
+// DNAPlacementData is a structure containing 7 G4ThreeVectors containing the coordinates of 6
+// residues & central location of a given nucleotide base pair.
+//--------------------------------------------------------------------------------------------------
 DNAPosData* GeoCalculationV2::CalculateDNAPosition(G4int histoneNum,
                                                  G4ThreeVector& posSugarTMP1,
                                                  G4ThreeVector& posSugarTHF1,
@@ -248,13 +352,15 @@ DNAPosData* GeoCalculationV2::CalculateDNAPosition(G4int histoneNum,
             // First DNA helix (small simple helix)
             //
             //G4double dBetweenEl = 0.33*fFactor*nm;
-            G4double firstHelixMat[7][3] = {{0.,0.,0}, // CenterDNA //i*dBetweenEl
-                                            {sugarTMP1Rxy*cos(i*angleBpAroundHistone/rad+sugarTMP1IniAngle/rad),sugarTMP1ZIni,sugarTMP1Rxy*sin(i*angleBpAroundHistone/rad+sugarTMP1IniAngle/rad)}, // SugarTMP1
-                                            {sugarTHF1Rxy*cos(i*angleBpAroundHistone/rad+sugarTHF1IniAngle/rad),sugarTHF1ZIni,sugarTHF1Rxy*sin(i*angleBpAroundHistone/rad+sugarTHF1IniAngle/rad)}, // SugarTHF1
-                                            {base1Rxy*cos(i*angleBpAroundHistone/rad+base1IniAngle/rad),base1ZIni,base1Rxy*sin(i*angleBpAroundHistone/rad+base1IniAngle/rad)}, // Base1
-                                            {base2Rxy*cos(i*angleBpAroundHistone/rad+base2IniAngle/rad),base2ZIni,base2Rxy*sin(i*angleBpAroundHistone/rad+base2IniAngle/rad)}, // Base2
-                                            {sugarTHF2Rxy*cos(i*angleBpAroundHistone/rad+sugarTHF2IniAngle/rad),sugarTHF2ZIni,sugarTHF2Rxy*sin(i*angleBpAroundHistone/rad+sugarTHF2IniAngle/rad)}, // SugarTHF2
-                                            {sugarTMP2Rxy*cos(i*angleBpAroundHistone/rad+sugarTMP2IniAngle/rad),sugarTMP2ZIni,sugarTMP2Rxy*sin(i*angleBpAroundHistone/rad+sugarTMP2IniAngle/rad)}}; // SugarTMP2
+            G4double firstHelixMat[7][3] = {
+                {0.,0.,0}, // CenterDNA //i*dBetweenEl
+                {sugarTMP1Rxy*cos(i*angleBpAroundHistone/rad+sugarTMP1IniAngle/rad),sugarTMP1ZIni,sugarTMP1Rxy*sin(i*angleBpAroundHistone/rad+sugarTMP1IniAngle/rad)}, // SugarTMP1
+                {sugarTHF1Rxy*cos(i*angleBpAroundHistone/rad+sugarTHF1IniAngle/rad),sugarTHF1ZIni,sugarTHF1Rxy*sin(i*angleBpAroundHistone/rad+sugarTHF1IniAngle/rad)}, // SugarTHF1
+                {base1Rxy*cos(i*angleBpAroundHistone/rad+base1IniAngle/rad),base1ZIni,base1Rxy*sin(i*angleBpAroundHistone/rad+base1IniAngle/rad)}, // Base1
+                {base2Rxy*cos(i*angleBpAroundHistone/rad+base2IniAngle/rad),base2ZIni,base2Rxy*sin(i*angleBpAroundHistone/rad+base2IniAngle/rad)}, // Base2
+                {sugarTHF2Rxy*cos(i*angleBpAroundHistone/rad+sugarTHF2IniAngle/rad),sugarTHF2ZIni,sugarTHF2Rxy*sin(i*angleBpAroundHistone/rad+sugarTHF2IniAngle/rad)}, // SugarTHF2
+                {sugarTMP2Rxy*cos(i*angleBpAroundHistone/rad+sugarTMP2IniAngle/rad),sugarTMP2ZIni,sugarTMP2Rxy*sin(i*angleBpAroundHistone/rad+sugarTMP2IniAngle/rad)}
+            }; // SugarTMP2
 
             // Second helix matrix
             G4double secondHelixMat[3] = {centralRadius*cos(i*deltaAngle/rad), centralRadius*sin(i*deltaAngle/rad), i*secondHelixPitch/nbBasePairPerTurn};
@@ -361,13 +467,15 @@ DNAPosData* GeoCalculationV2::CalculateDNAPosition(G4int histoneNum,
             // First DNA helix (small simple helix)
             //
             //G4double dBetweenEl = 0.33*fFactor*nm;
-            G4double firstHelixMat[7][3] = {{0.,0.,0}, // CenterDNA //i*dBetweenEl
-                                            {sugarTMP1Rxy*cos(i*angleBpAroundHistone/rad+sugarTMP1IniAngle/rad),sugarTMP1ZIni,sugarTMP1Rxy*sin(i*angleBpAroundHistone/rad+sugarTMP1IniAngle/rad)}, // SugarTMP1
-                                            {sugarTHF1Rxy*cos(i*angleBpAroundHistone/rad+sugarTHF1IniAngle/rad),sugarTHF1ZIni,sugarTHF1Rxy*sin(i*angleBpAroundHistone/rad+sugarTHF1IniAngle/rad)}, // SugarTHF1
-                                            {base1Rxy*cos(i*angleBpAroundHistone/rad+base1IniAngle/rad),base1ZIni,base1Rxy*sin(i*angleBpAroundHistone/rad+base1IniAngle/rad)}, // Base1
-                                            {base2Rxy*cos(i*angleBpAroundHistone/rad+base2IniAngle/rad),base2ZIni,base2Rxy*sin(i*angleBpAroundHistone/rad+base2IniAngle/rad)}, // Base2
-                                            {sugarTHF2Rxy*cos(i*angleBpAroundHistone/rad+sugarTHF2IniAngle/rad),sugarTHF2ZIni,sugarTHF2Rxy*sin(i*angleBpAroundHistone/rad+sugarTHF2IniAngle/rad)}, // SugarTHF2
-                                            {sugarTMP2Rxy*cos(i*angleBpAroundHistone/rad+sugarTMP2IniAngle/rad),sugarTMP2ZIni,sugarTMP2Rxy*sin(i*angleBpAroundHistone/rad+sugarTMP2IniAngle/rad)}}; // SugarTMP2
+            G4double firstHelixMat[7][3] = {
+                {0.,0.,0}, // CenterDNA //i*dBetweenEl
+                {sugarTMP1Rxy*cos(i*angleBpAroundHistone/rad+sugarTMP1IniAngle/rad),sugarTMP1ZIni,sugarTMP1Rxy*sin(i*angleBpAroundHistone/rad+sugarTMP1IniAngle/rad)}, // SugarTMP1
+                {sugarTHF1Rxy*cos(i*angleBpAroundHistone/rad+sugarTHF1IniAngle/rad),sugarTHF1ZIni,sugarTHF1Rxy*sin(i*angleBpAroundHistone/rad+sugarTHF1IniAngle/rad)}, // SugarTHF1
+                {base1Rxy*cos(i*angleBpAroundHistone/rad+base1IniAngle/rad),base1ZIni,base1Rxy*sin(i*angleBpAroundHistone/rad+base1IniAngle/rad)}, // Base1
+                {base2Rxy*cos(i*angleBpAroundHistone/rad+base2IniAngle/rad),base2ZIni,base2Rxy*sin(i*angleBpAroundHistone/rad+base2IniAngle/rad)}, // Base2
+                {sugarTHF2Rxy*cos(i*angleBpAroundHistone/rad+sugarTHF2IniAngle/rad),sugarTHF2ZIni,sugarTHF2Rxy*sin(i*angleBpAroundHistone/rad+sugarTHF2IniAngle/rad)}, // SugarTHF2
+                {sugarTMP2Rxy*cos(i*angleBpAroundHistone/rad+sugarTMP2IniAngle/rad),sugarTMP2ZIni,sugarTMP2Rxy*sin(i*angleBpAroundHistone/rad+sugarTMP2IniAngle/rad)}
+            }; // SugarTMP2
 
             // Rotate first helix to be always ortho to the path of the second one
             G4double rotMat[3][3]={{cos(i*-deltaLinkerAngle/rad),-sin(i*-deltaLinkerAngle/rad),0},
@@ -505,89 +613,16 @@ DNAPosData* GeoCalculationV2::CalculateDNAPosition(G4int histoneNum,
     return data;
 }
 
-std::vector<G4ThreeVector>* GeoCalculationV2::CalculateNucleosomePosition(G4int nucleoNum)
-{
-    // Vector to fill and to output
-    std::vector<G4ThreeVector>* posNucleoData = new std::vector<G4ThreeVector>(nucleoNum);
 
-    fFiberHelixMatVect.reserve(nucleoNum);
-    fRotFiberMatVect.reserve(nucleoNum);
-
-    // Histone start coord (add something in z because of the super helix not zero centered)
-    G4double histoneMat[1][3] = {{0.,0.,2.370*fFactor*nm}};
-
-    // iterate on each nucleosome
-    for(int n=0;n<nucleoNum;++n)
-    {
-        G4double fiberHelixMat[3];
-        fiberHelixMat[0] = fFiberCentralRadius*cos(n*fFiberDeltaAngle/rad); // x
-        fiberHelixMat[1] = fFiberCentralRadius*sin(n*fFiberDeltaAngle/rad); // y
-        fiberHelixMat[2] = n*fFiberPitch/fFiberNbNuclPerTurn; // z
-
-        // Save the matrix
-        fFiberHelixMatVect.push_back(std::vector<G4double>() );
-        fFiberHelixMatVect[n].push_back(fiberHelixMat[0]);
-        fFiberHelixMatVect[n].push_back(fiberHelixMat[1]);
-        fFiberHelixMatVect[n].push_back(fiberHelixMat[2]);
-
-        // Rotation matrix (Rz) for placement inside the fiber.
-        // We must rotate the objects first and then place them.
-        //
-        G4double rotFiberMat[3][3];
-        rotFiberMat[0][0] = cos(n*-fFiberDeltaAngle/rad);rotFiberMat[0][1]=-sin(n*-fFiberDeltaAngle/rad);rotFiberMat[0][2]=0; // x0, y0, z0
-        rotFiberMat[1][0] = sin(n*-fFiberDeltaAngle/rad);rotFiberMat[1][1]=cos(n*-fFiberDeltaAngle/rad);rotFiberMat[1][2]=0; // x1, y1, z1
-        rotFiberMat[2][0] = 0;rotFiberMat[2][1]=0;rotFiberMat[2][2]=1; // x2, y2, z2
-
-        // Save the matrix
-        fRotFiberMatVect.push_back(std::vector<std::vector<G4double> >() );
-        for(int line=0;line<3;++line)
-        {
-            fRotFiberMatVect[n].push_back(std::vector<G4double>() );
-
-            for(int column=0;column<3;++column)
-            {
-                fRotFiberMatVect[n][line].push_back(rotFiberMat[line][column]);
-            }
-        }
-
-
-        // Fiber part
-
-        G4double histoneHelixFMat[1][3] = {};
-
-        // Matrix product to rotate
-        //
-        // iterate on each line of output matrix+
-        for(int line=0;line<1;line++)
-        {
-            // iterate on each column of output matrix
-            for(int column=0;column<3;column++)
-            {
-                // iterate to do the sum
-                for(int p=0;p<3;++p)
-                {
-                    histoneHelixFMat[line][column] += histoneMat[line][p]*rotFiberMat[p][column];
-                }
-            }
-        }
-
-        // Add the coord of the helix
-        //
-        for(int line=0;line<1;++line)
-        {
-            for(int column=0;column<3;++column)
-            {
-                histoneHelixFMat[line][column] += fiberHelixMat[column];
-            }
-        }
-
-        // fill the output vector
-        posNucleoData->at(n) = G4ThreeVector(histoneHelixFMat[0][0],histoneHelixFMat[0][1],histoneHelixFMat[0][2]);
-    }
-
-    return posNucleoData;
-}
-
+//--------------------------------------------------------------------------------------------------
+// Create a map of the 6 volumes comprising nucleotide base pairs, across all of the basis 
+// nucleosomes. Key = G4ThreeVector of coordinates, Value = radius of the volume (hydration shell).
+// Input parameter: pointer to a DNAPosData object created by CalculateDNAPosition().
+// Output: a map of coordinates:radius pairs that is used by 
+//     GeoVolume::CreateNucleosomeCuttedSolidsAndLogicals()
+// NOTE: it is the hydration shell radius that is used.
+// Map size = 3600 (3 nucleosomes x 200 bp/nucl x 6 volumes/bp)
+//--------------------------------------------------------------------------------------------------
 std::map<G4ThreeVector,G4double>* GeoCalculationV2::GenerateCoordAndRadiusMap(DNAPosData* dnaPosData)
 {
     // To build the coord map used by the cut algorithm
@@ -597,10 +632,10 @@ std::map<G4ThreeVector,G4double>* GeoCalculationV2::GenerateCoordAndRadiusMap(DN
     G4ThreeVector coord;
     G4double radius;
 
-    // iterate on each histone
+    // iterate on each histone (3)
     for(int i=0, ei=dnaPosData->size();i<ei;++i)
     {
-        // iterate on each bp
+        // iterate on each bp (200)
         for(int j=0, ej=dnaPosData->at(i).size();j<ej;++j)
         {
             // sugarTMP 1
@@ -638,6 +673,10 @@ std::map<G4ThreeVector,G4double>* GeoCalculationV2::GenerateCoordAndRadiusMap(DN
     return outMap;
 }
 
+
+//--------------------------------------------------------------------------------------------------
+// Helper function used by CalculateDNAPosition().
+//--------------------------------------------------------------------------------------------------
 G4double GeoCalculationV2::GetAngleToXAxis(G4ThreeVector t)
 {
     // Angle to x axis of the projection of t on the XY plane
