@@ -640,32 +640,38 @@ std::map<G4ThreeVector,G4double>* GeoCalculationV2::GenerateCoordAndRadiusMap(DN
         {
             // sugarTMP 1
             coord = dnaPosData->at(i)[j].posSugarTMP1;
-            radius = fSugarTMPRadiusWater;
+            // radius = fSugarTMPRadiusWater;
+            radius = fSugarTMPRadius;
             (*outMap)[coord] = radius;
 
             // sugarTHF 1
             coord = dnaPosData->at(i)[j].posSugarTHF1;
-            radius = fSugarTHFRadiusWater;
+            // radius = fSugarTHFRadiusWater;
+            radius = fSugarTHFRadius;
             (*outMap)[coord] = radius;
 
             // base 1
             coord = dnaPosData->at(i)[j].posBase1;
-            radius = fBaseRadiusWater;
+            // radius = fBaseRadiusWater;
+            radius = fBaseRadius;
             (*outMap)[coord] = radius;
 
             // base 2
             coord = dnaPosData->at(i)[j].posBase2;
-            radius = fBaseRadiusWater;
+            // radius = fBaseRadiusWater;
+            radius = fBaseRadius;
             (*outMap)[coord] = radius;
 
             // sugarTHF 2
             coord = dnaPosData->at(i)[j].posSugarTHF2;
-            radius = fSugarTHFRadiusWater;
+            // radius = fSugarTHFRadiusWater;
+            radius = fSugarTHFRadius;
             (*outMap)[coord] = radius;
 
             // sugarTMP 2
             coord = dnaPosData->at(i)[j].posSugarTMP2;
-            radius = fSugarTMPRadiusWater;
+            // radius = fSugarTMPRadiusWater;
+            radius = fSugarTMPRadius;
             (*outMap)[coord] = radius;
         }
     }

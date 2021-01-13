@@ -66,6 +66,9 @@ void GeoManagerV2::Initialize(G4int BpNum, G4int NucleoNum)
 //--------------------------------------------------------------------------------------------------
 G4LogicalVolume* GeoManagerV2::BuildLogicFiber(G4bool isVisu)
 {
+    G4cout << "=======================================" << G4endl;
+    G4cout << "isVisu (A) = " <<isVisu << G4endl;
+    G4cout << "=======================================" << G4endl;
     G4LogicalVolume* lFiber = geoVolume->BuildLogicFiber(geoCalculation->GetAllDNAVolumePositions(),
                                                              geoCalculation->GetNucleosomePosition(),
                                                              geoCalculation->GetPosAndRadiusMap(),

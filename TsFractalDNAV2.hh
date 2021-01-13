@@ -49,6 +49,7 @@ private:
     std::vector<G4LogicalVolume*> lmLoop; // Vector of logical volumes containing chromosome territories
     
     G4bool fBuildBases;
+    G4bool fGraphics;
     
     G4int fMaxNumFibers;
     G4int fNumFibers;  
