@@ -124,6 +124,8 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
     // GeoCalculation::CalculateDNAPosition(). I.e. all nucleotide positions around 3 basis
     // histone complexes.
     std::vector<DNAPlacementData>* nuclVolPos = &dnaVolPos->at(1);
+    // std::vector<DNAPlacementData>* nuclVolPos2 = &dnaVolPos->at(1);
+    // std::vector<DNAPlacementData>* nuclVolPos3 = &dnaVolPos->at(2);
 
     // We create here all the DNA volumes (solid & logical) around the histone based on the second 
     // nucleosome (number 1) positions. Only the volumes of the second nucleosome are generated. By 
@@ -135,6 +137,10 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
     // each of 200 bp in each of 3 basis nucleosomes (3600 volumes)
     std::map<G4String, std::vector<G4LogicalVolume*> >* volMap
             = CreateNucleosomeCuttedSolidsAndLogicals(nuclVolPos, posAndRadiusMap, isVisu);
+    // std::map<G4String, std::vector<G4LogicalVolume*> >* volMap2
+    //         = CreateNucleosomeCuttedSolidsAndLogicals(nuclVolPos2, posAndRadiusMap, isVisu);
+    // std::map<G4String, std::vector<G4LogicalVolume*> >* volMap3
+    //         = CreateNucleosomeCuttedSolidsAndLogicals(nuclVolPos3, posAndRadiusMap, isVisu);
     // Resulting volMap is indexed by one of 12 entries (6 residues & 6 hydration shells). Each
     // entry has 200 elements, each corresponding to a distinct logical volume
 
@@ -164,12 +170,12 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
     for(int j=0;j<fBpNum;++j)
     {
         // Get the base volume positions of the first nucleosome
-        posSugarTMP1 = dnaVolPos->at(0)[j].posSugarTMP1;
-        posSugarTHF1 = dnaVolPos->at(0)[j].posSugarTHF1;
-        posBase1 = dnaVolPos->at(0)[j].posBase1;
-        posBase2 = dnaVolPos->at(0)[j].posBase2;
-        posSugarTHF2 = dnaVolPos->at(0)[j].posSugarTHF2;
-        posSugarTMP2 = dnaVolPos->at(0)[j].posSugarTMP2;
+        posSugarTMP1 = dnaVolPos->at(1)[j].posSugarTMP1;
+        posSugarTHF1 = dnaVolPos->at(1)[j].posSugarTHF1;
+        posBase1 = dnaVolPos->at(1)[j].posBase1;
+        posBase2 = dnaVolPos->at(1)[j].posBase2;
+        posSugarTHF2 = dnaVolPos->at(1)[j].posSugarTHF2;
+        posSugarTMP2 = dnaVolPos->at(1)[j].posSugarTMP2;
 
         // Save each of them in a vector
         posSugarTMP1Vect.push_back(posSugarTMP1);
@@ -200,10 +206,14 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
     //----------------------------------------------------------------------------------------------
     for(int i=0;i<fNucleoNum;++i)
     {
+        G4cout << "***********************************************************************************************************************************************" << G4endl;
+        // G4cout << "i%3 = " << i%3 << G4endl;
         // Rotate nucleosome about z axis (fiber axis)
         // *** This doesn't seem to be used. Rotation is actually done after next for loop
         G4RotationMatrix* rotObj = new G4RotationMatrix();
         rotObj->rotateZ(i*-fFiberDeltaAngle + fFiberDeltaAngle);
+        G4RotationMatrix* rotCuts = new G4RotationMatrix();
+        rotCuts->rotateZ(i*-fFiberDeltaAngle);
 
         //------------------------------------------------------------------------------------------
         // iterate on each bp (fBpNum is input in parameter file. Default = 200)
@@ -216,6 +226,7 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             //--------------------------------------------------------------------------------------
             // Already done for first nucleosome, outside the loop (see above). No rotations needed.
             if(i==0)
+            // // if(i%6==0)
             {
                 posSugarTMP1 = posSugarTMP1Vect[j];
                 posSugarTHF1 = posSugarTHF1Vect[j];
@@ -235,6 +246,23 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
                 posSugarTHF2 = posSugarTHF2Vect[j].rotateZ(fFiberDeltaAngle);
                 posSugarTMP2 = posSugarTMP2Vect[j].rotateZ(fFiberDeltaAngle);   
             }
+
+            // posSugarTMP1 = dnaVolPos->at(i%3)[j].posSugarTMP1;
+            // posSugarTHF1 = dnaVolPos->at(i%3)[j].posSugarTHF1;
+            // posBase1 = dnaVolPos->at(i%3)[j].posBase1;
+            // posBase2 = dnaVolPos->at(i%3)[j].posBase2;
+            // posSugarTHF2 = dnaVolPos->at(i%3)[j].posSugarTHF2;
+            // posSugarTMP2 = dnaVolPos->at(i%3)[j].posSugarTMP2;
+
+            // if (i == 3 || i == 4)
+            // {
+            //     posSugarTMP1 = posSugarTMP1.rotateZ(3*fFiberDeltaAngle);
+            //     posSugarTHF1 = posSugarTHF1.rotateZ(3*fFiberDeltaAngle);
+            //     posBase1 = posBase1.rotateZ(3*fFiberDeltaAngle);
+            //     posBase2 = posBase2.rotateZ(3*fFiberDeltaAngle);
+            //     posSugarTHF2 = posSugarTHF2.rotateZ(3*fFiberDeltaAngle);
+            //     posSugarTMP2 = posSugarTMP2.rotateZ(3*fFiberDeltaAngle);   
+            // }
 
             // Add the z shift to build the helix
             posSugarTMP1 += G4ThreeVector(0.,0.,i*zShift);
@@ -264,11 +292,25 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             // e.g. To get the x coordinate of the 150th sugar volume in the second DNA strand of 
             // the 7th nucleosome: (*fpDnaMoleculePositions)["Desoxyribose"][(6*200*2)+(149*2)+2][0]
             //--------------------------------------------------------------------------------------
+            // G4RotationMatrix* helixRotation = new G4RotationMatrix();
+            // helixRotation-> rotateZ(j*fFiberDeltaAngle);
             // Phosphate 1
+            G4cout << "i = " << i << ", j = " << j << G4endl;
+            G4PVPlacement* sTMP1 = new G4PVPlacement(rotCuts,posSugarTMP1,volMap->at("sugarTMP1")[j],
+                "backboneTMP1",logicFiber,false,count);
             // G4PVPlacement* sTMP1 = new G4PVPlacement(0,G4ThreeVector(),volMap->at("sugarTMP1")[j],
             //     "backboneTMP1",volMap->at("sugarTMP1Water")[j],false,count);
-            G4PVPlacement* sTMP1 = new G4PVPlacement(0,posSugarTMP1,volMap->at("sugarTMP1")[j],
-                "backboneTMP1",logicFiber,false,count);
+            // G4PVPlacement* sTMP1 = new G4PVPlacement(helixRotation,posSugarTMP1,volMap->at("sugarTMP1")[j],
+                // "backboneTMP1",logicFiber,false,count);
+            // G4PVPlacement* sTMP1;
+            // if (i%3 == 0) {
+            //     sTMP1 = new G4PVPlacement(0,posSugarTMP1,volMap->at("sugarTMP1")[j],
+            //                     "backboneTMP1",logicFiber,false,count);
+            // }
+            // else if (i%3 == 1) {
+            //     sTMP1 = new G4PVPlacement(0,posSugarTMP1,volMap2->at("sugarTMP1")[j],
+            //                     "backboneTMP1",logicFiber,false,count);
+            // }
 
             (*fpDnaMoleculePositions)["Phosphate"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(posSugarTMP1.getX());
@@ -278,10 +320,21 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(1);
             // sTMP1->CheckOverlaps();
             // Sugar 1
+            G4PVPlacement* sTHF1 = new G4PVPlacement(rotCuts,posSugarTHF1,volMap->at("sugarTHF1")[j],
+                "backboneTHF1",logicFiber,false,count);
             // G4PVPlacement* sTHF1 = new G4PVPlacement(0,G4ThreeVector(),volMap->at("sugarTHF1")[j],
             //     "backboneTHF1",volMap->at("sugarTHF1Water")[j],false,count);
-            G4PVPlacement* sTHF1 = new G4PVPlacement(0,posSugarTHF1,volMap->at("sugarTHF1")[j],
-                "backboneTHF1",logicFiber,false,count);
+            // G4PVPlacement* sTHF1 = new G4PVPlacement(helixRotation,posSugarTHF1,volMap->at("sugarTHF1")[j],
+                // "backboneTHF1",logicFiber,false,count);
+            // G4PVPlacement* sTHF1;
+            // if (i %3== 0) {
+            //     sTHF1 = new G4PVPlacement(0,posSugarTHF1,volMap->at("sugarTHF1")[j],
+            //                     "backboneTHF1",logicFiber,false,count);
+            // }
+            // else if (i%3 == 1) {
+            //     sTHF1 = new G4PVPlacement(0,posSugarTHF1,volMap2->at("sugarTHF1")[j],
+            //                     "backboneTHF1",logicFiber,false,count);
+            // }
             (*fpDnaMoleculePositions)["Desoxyribose"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF1.getX());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF1.getY());
@@ -295,10 +348,20 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             G4PVPlacement* b2A;
             if(j%2) // odd
             {
+                b1C = new G4PVPlacement(rotCuts,posBase1,volMap->at("base1")[j],"base_cytosine",
+                    logicFiber,false,count);
                 // b1C = new G4PVPlacement(0,G4ThreeVector(),volMap->at("base1")[j],"base_cytosine",
                 //     volMap->at("base1Water")[j],false,count);
-                // b1C = new G4PVPlacement(0,posBase1,volMap->at("base1")[j],"base_cytosine",
+                // b1C = new G4PVPlacement(helixRotation,posBase1,volMap->at("base1")[j],"base_cytosine",
                 //     logicFiber,false,count);
+                // if (i%3 == 0) {
+                //     b1C = new G4PVPlacement(0,posBase1,volMap->at("base1")[j],"base_cytosine",
+                //         logicFiber,false,count);
+                // }
+                // else if (i%3 == 1) {
+                //     b1C = new G4PVPlacement(0,posBase1,volMap2->at("base1")[j],"base_cytosine",
+                //         logicFiber,false,count);
+                // }
                 (*fpDnaMoleculePositions)["Cytosine"].push_back(std::vector<double>());
                 (*fpDnaMoleculePositions)["Cytosine"].back().push_back(posBase1.getX());
                 (*fpDnaMoleculePositions)["Cytosine"].back().push_back(posBase1.getY());
@@ -306,10 +369,21 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
                 (*fpDnaMoleculePositions)["Cytosine"].back().push_back(count);
                 (*fpDnaMoleculePositions)["Cytosine"].back().push_back(1);
                 // b1C->CheckOverlaps();
+
+                b2G = new G4PVPlacement(rotCuts,posBase2,volMap->at("base2")[j],"base_guanine",
+                    logicFiber,false,count);
                 // b2G = new G4PVPlacement(0,G4ThreeVector(),volMap->at("base2")[j],"base_guanine",
                 //     volMap->at("base2Water")[j],false,count);
-                // b2G = new G4PVPlacement(0,posBase2,volMap->at("base2")[j],"base_guanine",
-                //     logicFiber,false,count);
+                // b2G = new G4PVPlacement(helixRotation,posBase2,volMap->at("base2")[j],"base_guanine",
+                    // logicFiber,false,count);
+                // if (i%3 == 0) {
+                //     b2G = new G4PVPlacement(0,posBase2,volMap->at("base2")[j],"base_guanine",
+                //         logicFiber,false,count);
+                // }
+                // else if (i%3 == 1) {
+                //     b2G = new G4PVPlacement(0,posBase2,volMap2->at("base2")[j],"base_guanine",
+                //         logicFiber,false,count);
+                // }
                 (*fpDnaMoleculePositions)["Guanine"].push_back(std::vector<double>());
                 (*fpDnaMoleculePositions)["Guanine"].back().push_back(posBase2.getX());
                 (*fpDnaMoleculePositions)["Guanine"].back().push_back(posBase2.getY());
@@ -320,10 +394,20 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             }
             else // even
             {
+                b1T = new G4PVPlacement(rotCuts,posBase1,volMap->at("base1")[j],"base_thymine",
+                    logicFiber,false,count);
                 // b1T = new G4PVPlacement(0,G4ThreeVector(),volMap->at("base1")[j],"base_thymine",
                 //     volMap->at("base1Water")[j],false,count);
-                // b1T = new G4PVPlacement(0,posBase1,volMap->at("base1")[j],"base_thymine",
-                //     logicFiber,false,count);
+                // b1T = new G4PVPlacement(helixRotation,posBase1,volMap->at("base1")[j],"base_thymine",
+                    // logicFiber,false,count);
+                // if (i%3 == 0) {
+                //     b1T = new G4PVPlacement(0,posBase1,volMap->at("base1")[j],"base_thymine",
+                //         logicFiber,false,count);
+                // }
+                // else if (i%3 == 1) {
+                //     b1T = new G4PVPlacement(0,posBase1,volMap2->at("base1")[j],"base_thymine",
+                //         logicFiber,false,count);
+                // }
 
                 (*fpDnaMoleculePositions)["Thymine"].push_back(std::vector<double>());
                 (*fpDnaMoleculePositions)["Thymine"].back().push_back(posBase1.getX());
@@ -332,10 +416,22 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
                 (*fpDnaMoleculePositions)["Thymine"].back().push_back(count);
                 (*fpDnaMoleculePositions)["Thymine"].back().push_back(1);
                 // b1T->CheckOverlaps();
+
+                b2A = new G4PVPlacement(rotCuts,posBase2,volMap->at("base2")[j],"base_adenine",
+                    logicFiber,false,count);
                 // b2A = new G4PVPlacement(0,G4ThreeVector(),volMap->at("base2")[j],"base_adenine",
                 //     volMap->at("base2Water")[j],false,count);
-                // b2A = new G4PVPlacement(0,posBase2,volMap->at("base2")[j],"base_adenine",
-                //     logicFiber,false,count);
+                // b2A = new G4PVPlacement(helixRotation,posBase2,volMap->at("base2")[j],"base_adenine",
+                    // logicFiber,false,count);
+                // if (i%3 == 0) {
+                //     b2A = new G4PVPlacement(0,posBase2,volMap->at("base2")[j],"base_adenine",
+                //         logicFiber,false,count);
+                // }
+                // else if (i%3 == 1) {
+                //     b2A = new G4PVPlacement(0,posBase2,volMap2->at("base2")[j],"base_adenine",
+                //         logicFiber,false,count);
+                // }
+
                 (*fpDnaMoleculePositions)["Adenine"].push_back(std::vector<double>());
                 (*fpDnaMoleculePositions)["Adenine"].back().push_back(posBase2.getX());
                 (*fpDnaMoleculePositions)["Adenine"].back().push_back(posBase2.getY());
@@ -345,10 +441,22 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
                 // b2A->CheckOverlaps();
             }
 
+            G4PVPlacement* sTHF2 = new G4PVPlacement(rotCuts,posSugarTHF2,volMap->at("sugarTHF2")[j],
+                "backboneTHF2",logicFiber,false,count);
             // G4PVPlacement* sTHF2 = new G4PVPlacement(0,G4ThreeVector(),volMap->at("sugarTHF2")[j],
             //     "backboneTHF2",volMap->at("sugarTHF2Water")[j],false,count);
-            // G4PVPlacement* sTHF2 = new G4PVPlacement(0,posSugarTHF2,volMap->at("sugarTHF2")[j],
-            //     "backboneTHF2",logicFiber,false,count);
+            // G4PVPlacement* sTHF2 = new G4PVPlacement(helixRotation,posSugarTHF2,volMap->at("sugarTHF2")[j],
+                // "backboneTHF2",logicFiber,false,count);
+            // G4PVPlacement* sTHF2;
+            // if (i%3 == 0) {
+            //     sTHF2 = new G4PVPlacement(0,posSugarTHF2,volMap->at("sugarTHF2")[j],
+            //         "backboneTHF2",logicFiber,false,count);
+            // }
+            // else if (i%3 == 1) {
+            //     sTHF2 = new G4PVPlacement(0,posSugarTHF2,volMap2->at("sugarTHF2")[j],
+            //         "backboneTHF2",logicFiber,false,count);
+            // }
+
             (*fpDnaMoleculePositions)["Desoxyribose"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF2.getX());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF2.getY());
@@ -356,10 +464,23 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(count);
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(2);
             // sTHF2->CheckOverlaps();
+
+            G4PVPlacement* sTMP2 = new G4PVPlacement(rotCuts,posSugarTMP2,volMap->at("sugarTMP2")[j],
+                "backboneTMP2",logicFiber,false,count);
             // G4PVPlacement* sTMP2 = new G4PVPlacement(0,G4ThreeVector(),volMap->at("sugarTMP2")[j],
             //     "backboneTMP2",volMap->at("sugarTMP2Water")[j],false,count);
-            // G4PVPlacement* sTMP2 = new G4PVPlacement(0,posSugarTMP2,volMap->at("sugarTMP2")[j],
-            //     "backboneTMP2",logicFiber,false,count);
+            // G4PVPlacement* sTMP2 = new G4PVPlacement(helixRotation,posSugarTMP2,volMap->at("sugarTMP2")[j],
+                // "backboneTMP2",logicFiber,false,count);
+            // G4PVPlacement* sTMP2;
+            // if (i%3 == 0) {
+            //     sTMP2 = new G4PVPlacement(0,posSugarTMP2,volMap->at("sugarTMP2")[j],
+            //         "backboneTMP2",logicFiber,false,count);
+            // }
+            // else if (i%3 == 1) {
+            //     sTMP2 = new G4PVPlacement(0,posSugarTMP2,volMap2->at("sugarTMP2")[j],
+            //         "backboneTMP2",logicFiber,false,count);
+            // }
+
             (*fpDnaMoleculePositions)["Phosphate"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(posSugarTMP2.getX());
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(posSugarTMP2.getY());
@@ -544,25 +665,25 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* GeoVolumeV2::CreateNucleosom
             // G4cout << "Cutting solid j= " << j << G4endl;
             // G4cout << "**********************************************" << G4endl;
             // residues
-            G4cout << "==========" << G4endl;
-            G4cout << "Cutting sugarTMP1" << G4endl;
+            // G4cout << "==========" << G4endl;
+            // G4cout << "Cutting sugarTMP1" << G4endl;
             sugarTMP1 = CreateCutSolid(solidSugarTMP,posSugarTMP1,posAndRadiusMap, "sugarTMP", true);
-            G4cout << "==========" << G4endl;
-            G4cout << "Cutting sugarTHF1" << G4endl;
+            // G4cout << "==========" << G4endl;
+            // G4cout << "Cutting sugarTHF1" << G4endl;
             sugarTHF1 = CreateCutSolid(solidSugarTHF,posSugarTHF1,posAndRadiusMap, "sugarTHF", true);
-            G4cout << "==========" << G4endl;
-            G4cout << "Cutting base1" << G4endl;
+            // G4cout << "==========" << G4endl;
+            // G4cout << "Cutting base1" << G4endl;
             base1 = CreateCutSolid(solidBase,posBase1,posAndRadiusMap, "base", true);
-            G4cout << "==========" << G4endl;
-            G4cout << "Cutting base2" << G4endl;
+            // G4cout << "==========" << G4endl;
+            // G4cout << "Cutting base2" << G4endl;
             base2 = CreateCutSolid(solidBase,posBase2,posAndRadiusMap, "base", true);
-            G4cout << "==========" << G4endl;
-            G4cout << "Cutting sugarTHF2" << G4endl;
+            // G4cout << "==========" << G4endl;
+            // G4cout << "Cutting sugarTHF2" << G4endl;
             sugarTHF2 = CreateCutSolid(solidSugarTHF,posSugarTHF2,posAndRadiusMap, "sugarTHF", true);
-            G4cout << "==========" << G4endl;
-            G4cout << "Cutting sugarTMP2" << G4endl;
+            // G4cout << "==========" << G4endl;
+            // G4cout << "Cutting sugarTMP2" << G4endl;
             sugarTMP2 = CreateCutSolid(solidSugarTMP,posSugarTMP2,posAndRadiusMap, "sugarTMP", true);
-            G4cout << "==========" << G4endl;
+            // G4cout << "==========" << G4endl;
 
             // // hydration shells
             sugarTMP1Water = CreateCutSolid(solidSugarTMPWater,posSugarTMP1,posAndRadiusMap);
@@ -596,10 +717,10 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* GeoVolumeV2::CreateNucleosom
             sugarTMP2Water = solidSugarTMPWater;
         }
 
-        G4double sugarVolume = sugarTMP1->GetCubicVolume();
-        G4cout << "**********************************************" << G4endl;
-        G4cout << "Sugar volume = " << sugarVolume/m3 << G4endl;
-        G4cout << "**********************************************" << G4endl;
+        // G4double sugarVolume = sugarTMP1->GetCubicVolume();
+        // G4cout << "**********************************************" << G4endl;
+        // G4cout << "Sugar volume = " << sugarVolume/m3 << G4endl;
+        // G4cout << "**********************************************" << G4endl;
 
         //------------------------------------------------------------------------------------------
         // Then: create logical volumes using the cut solids
@@ -697,6 +818,7 @@ G4VSolid* GeoVolumeV2::CreateCutSolid(G4Orb *solidOrbRef,
                                                G4String volName,
                                                G4bool in)
 {
+    return solidOrbRef;
     // G4cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << G4endl;
     // G4SubtractionSolid* solidCut(NULL); // container for the cut solid
     G4UnionSolid* solidCut(NULL); // container for the cut solid
@@ -733,7 +855,7 @@ G4VSolid* GeoVolumeV2::CreateCutSolid(G4Orb *solidOrbRef,
         // Check if target volume = reference volume (can only happen once)
         if(distance == 0 && !isOurVol)
         {
-            G4cout << "The matching index is: " << count << G4endl;
+            // G4cout << "The matching index is: " << count << G4endl;
             // target volume is the reference volume
             // G4cout << "Distance is 0 at index " << count << G4endl;
             // G4cout << "Radius = " << radiusTar << G4endl;
@@ -748,83 +870,57 @@ G4VSolid* GeoVolumeV2::CreateCutSolid(G4Orb *solidOrbRef,
             exit(EXIT_FAILURE);
         }
         // Check if the volumes are close enough that a cut is required. If so, cut the reference
-        else if (count == 450)
-        // else if(distance <= radiusRef+radiusTar)
+        else if(distance <= radiusRef+radiusTar)
+        // else if (count == 450)
+        // else if (distance <= radiusRef+radiusTar && (count == 450 || count == 324 || count == 340 || count == 394 || count == 487 || count == 367))
+        // else if (distance <= radiusRef+radiusTar && (count == 450 || count == 324 || count == 340))
+        // else if (distance <= radiusRef+radiusTar && (count == 394 || count == 487 || count == 367))
         {
-            G4cout << "The overlapping index is: " << count << G4endl;
+            // G4cout << "The overlapping index is: " << count << G4endl;
             overlapcount++;
 
-
-
-            // posRef, posTar, radiusRef, radiusTar, solidOrbRef
-            G4Box* tarBox = new G4Box("cutoff_box",radiusTar, radiusTar, radiusTar);
-
-            G4ThreeVector displacement_vector = posTar - posRef;
-            G4double displacement = displacement_vector.getR();
-            G4double crossover = ((pow(radiusRef,2) + pow(displacement,2) - pow(radiusTar,2))/(2*displacement)) + tarBox->GetZHalfLength();
-            G4ThreeVector positionCut = crossover * (displacement_vector/displacement);
-
-            G4double theta = std::atan(displacement_vector.getY()/displacement_vector.getX());
-            G4double phi = std::acos(displacement_vector.getZ()/displacement);
-
-            // G4cout << "x = " << displacement_vector.getX()/nm << G4endl;
-            // G4cout << "y = " << displacement_vector.getY()/nm << G4endl;
-            // G4cout << "z = " << displacement_vector.getZ()/nm << G4endl;
-
-            // displacement_vector.setY(-1.*displacement_vector.getY());
-
-            G4RotationMatrix* rotationCut = new G4RotationMatrix(theta,phi,0);
-            // G4RotationMatrix* rotationCut = new G4RotationMatrix(0,0,0);
-
-            // solidCut = new G4SubtractionSolid("cut_solid",solidOrbRef,tarBox,rotationCut,positionCut);
-            solidCut = new G4UnionSolid("cut_solid",solidOrbRef,tarBox,rotationCut,positionCut);
-            // solidCut = new G4UnionSolid("cut_solid",solidOrbRef,tarBox,rotationCut,G4ThreeVector(0.,0.,0.));
-            isCutted = true;
-
-
-
             // G4Box* solidBox = new G4Box("solid box for cut", 2*radiusTar, 2*radiusTar, 2*radiusTar);
-            // // G4Box* solidBox = new G4Box("solid box for cut", radiusTar, radiusTar, radiusTar);
+            G4Box* solidBox = new G4Box("solid box for cut", radiusTar, radiusTar, radiusTar);
 
-            // // To calculate the position of the intersection center
-            // //
-            // // diff vector to from ref to tar
-            // G4ThreeVector diff = posTar - posRef;
-            // // Find the intersection point
-            // G4double d = (pow(radiusRef,2)-pow(radiusTar,2)+pow(distance,2) ) / (2*distance) + solidBox->GetZHalfLength() - 0.001*fFactor*nm;
-            // if(in) d -= 0.002*fFactor*nm;
-            // // "* ( diff/diff.getR() )" is necessary to get a vector in the right direction as output
-            // G4ThreeVector pos = d *( diff/diff.getR() );
+            // To calculate the position of the intersection center
+            //
+            // diff vector to from ref to tar
+            G4ThreeVector diff = posTar - posRef;
+            // Find the intersection point
+            G4double d = (pow(radiusRef,2)-pow(radiusTar,2)+pow(distance,2) ) / (2*distance) + solidBox->GetZHalfLength() - 0.001*fFactor*nm;
+            if(in) d -= 0.002*fFactor*nm;
+            // "* ( diff/diff.getR() )" is necessary to get a vector in the right direction as output
+            G4ThreeVector pos = d *( diff/diff.getR() );
 
-            // G4double phi = std::acos(pos.getZ()/pos.getR());
-            // G4double theta = std::acos( pos.getX() / ( pos.getR()*std::cos(M_PI/2.-phi) ) );
+            G4double phi = std::acos(pos.getZ()/pos.getR());
+            G4double theta = std::acos( pos.getX() / ( pos.getR()*std::cos(M_PI/2.-phi) ) );
 
-            // if(pos.getY()<0) theta = -theta;
+            if(pos.getY()<0) theta = -theta;
 
-            // G4ThreeVector rotAxisForPhi(1*fFactor*nm,0.,0.);
-            // rotAxisForPhi.rotateZ(theta+M_PI/2);
-            // G4RotationMatrix *rotMat = new G4RotationMatrix;
-            // rotMat->rotate(-phi, rotAxisForPhi);
+            G4ThreeVector rotAxisForPhi(1*fFactor*nm,0.,0.);
+            rotAxisForPhi.rotateZ(theta+M_PI/2);
+            G4RotationMatrix *rotMat = new G4RotationMatrix;
+            rotMat->rotate(-phi, rotAxisForPhi);
 
-            // G4ThreeVector rotZAxis(0.,0.,1*fFactor*nm);
-            // rotMat->rotate(theta, rotZAxis);
+            G4ThreeVector rotZAxis(0.,0.,1*fFactor*nm);
+            rotMat->rotate(theta, rotZAxis);
 
-            // G4Orb* solidOrbTar = new G4Orb("solid sphere for cut", radiusTar);
+            G4Orb* solidOrbTar = new G4Orb("solid sphere for cut", radiusTar);
 
-            // // solidCut = new G4SubtractionSolid("solidCut", solidOrbRef, solidOrbTar, rotMat, diff);
+            // solidCut = new G4SubtractionSolid("solidCut", solidOrbRef, solidOrbTar, rotMat, diff);
 
-            // // if(!isCutted) solidCut = new G4SubtractionSolid("solidCut", solidOrbRef, solidBox, rotMat, pos);
-            // if(!isCutted) solidCut = new G4UnionSolid("solidCut", solidOrbRef, solidBox, rotMat, pos);
-            // // // other times
-            // // else solidCut = new G4SubtractionSolid("solidCut", solidCut, solidBox, rotMat, pos);
-            // else solidCut = new G4UnionSolid("solidCut", solidCut, solidBox, rotMat, pos);
+            // if(!isCutted) solidCut = new G4SubtractionSolid("solidCut", solidOrbRef, solidBox, rotMat, pos);
+            if(!isCutted) solidCut = new G4UnionSolid("solidCut", solidOrbRef, solidBox, rotMat, pos);
+            // // other times
+            // else solidCut = new G4SubtractionSolid("solidCut", solidCut, solidBox, rotMat, pos);
+            else solidCut = new G4UnionSolid("solidCut", solidCut, solidBox, rotMat, pos);
 
-            // isCutted = true;
+            isCutted = true;
         }
         count++;
     }
 
-    G4cout << "overlap count = " << overlapcount << G4endl;
+    // G4cout << "overlap count = " << overlapcount << G4endl;
 
     if(isCutted) return solidCut;
     else return solidOrbRef;
