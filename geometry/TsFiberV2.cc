@@ -40,10 +40,8 @@
 TsFiberV2::TsFiberV2(TsParameterManager* pM, TsExtensionManager* eM, TsMaterialManager* mM, TsGeometryManager* gM,
 			 TsVGeometryComponent* parentComponent, G4VPhysicalVolume* parentVolume, G4String& name) :
 TsVGeometryComponent(pM, eM, mM, gM, parentComponent, parentVolume, name)
-{
-    
-    fGeoManager = new GeoManagerV2(0, 1.);
-    
+{  
+    fGeoManager = new GeoManagerV2(0, 1.);   
 }
 
 
@@ -63,6 +61,59 @@ G4VPhysicalVolume* TsFiberV2::Construct()
     G4Tubs* sWrapper = new G4Tubs("solid_wrapper", 0., envelopeDimensions[0], envelopeDimensions[1], 0, 360);
     fEnvelopeLog = CreateLogicalVolume(sWrapper);
     fEnvelopePhys = CreatePhysicalVolume(fEnvelopeLog);
+
+    // Get some parameters
+    G4int numBpPerNucleosome = fPm->GetIntegerParameter(GetFullParmName("DNANumBpPerNucleosome"));
+    G4int numNucleosomePerFiber = fPm->GetIntegerParameter(GetFullParmName("DnaNumNucleosomePerFiber"));
+    fCutVolumes = fPm->GetBooleanParameter(GetFullParmName("CutVolumes"));
+    fCheckForOverlaps = fPm->GetBooleanParameter("Ge/CheckForOverlaps");
+    fOverlapsResolution = fPm->GetIntegerParameter("Ge/CheckForOverlapsResolution");
+    fQuitIfOverlap = fPm->GetBooleanParameter("Ge/QuitIfOverlapDetected");
+
+    // Build DNA in the fiber
+    fGeoManager->Initialize(numBpPerNucleosome,numNucleosomePerFiber);
+    G4LogicalVolume* lFiber = fGeoManager->BuildLogicFiber(fCutVolumes, fCheckForOverlaps, 
+        fOverlapsResolution, fQuitIfOverlap);
+    G4VPhysicalVolume* pFiber = CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
+
+    // Check overlaps. Although topas does this check automatically, it does so before building
+    // logic fiber. Need to redo afterwards (i.e. after adding DNA content).
+    if (fCheckForOverlaps) {
+        if(pFiber->CheckOverlaps(fOverlapsResolution) && fQuitIfOverlap)
+            ThrowOverlapError();
+    }
+    
+	return fEnvelopePhys;
+}
+
+G4Material * TsFiberV2::OtherMaterial(G4String materialName)
+{
+    G4Material * material(0);
+    
+    if(materialName == "G4_WATER"){
+        // Water is defined from NIST material database
+        G4NistManager * man = G4NistManager::Instance();
+        material = man->FindOrBuildMaterial("G4_WATER");
+
+    }
+    
+    return material;
+}
+
+//--------------------------------------------------------------------------------------------------
+// Helper function used if a geometrical overlap is detected. Return the standard Topas message
+// about geometry overlaps and exit gracefully.
+//--------------------------------------------------------------------------------------------------
+void TsFiberV2::ThrowOverlapError() 
+{
+    G4cout << "Topas is quitting due to the above geometry overlap problem." << G4endl;
+    G4cout << "If you still want the TOPAS session to continue" << G4endl;
+    G4cout << "(such as to use visualization to study the overlap)," << G4endl;
+    G4cout << "Set the parameter Ge/QuitIfOverlapDetected to False" << G4endl;
+    exit(0);
+}
+
+
 
     // //**********************************************************************************************
     // // Verification of cutting solid behaviour
@@ -263,33 +314,8 @@ G4VPhysicalVolume* TsFiberV2::Construct()
 
 
 
-    G4cout << "Building the Fiber" << G4endl;
 
-    G4int numBpPerNucleosome = fPm->GetIntegerParameter(GetFullParmName("DNANumBpPerNucleosome"));
-    G4int numNucleosomePerFiber = fPm->GetIntegerParameter(GetFullParmName("DnaNumNucleosomePerFiber"));
-    fGeoManager->Initialize(numBpPerNucleosome,numNucleosomePerFiber);
-    // fGeoManager->Initialize();
-    
-    G4LogicalVolume* lFiber = fGeoManager->BuildLogicFiber(false);
-    
-    CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
-    
-	return fEnvelopePhys;
-}
 
-G4Material * TsFiberV2::OtherMaterial(G4String materialName)
-{
-    G4Material * material(0);
-    
-    if(materialName == "G4_WATER"){
-        // Water is defined from NIST material database
-        G4NistManager * man = G4NistManager::Instance();
-        material = man->FindOrBuildMaterial("G4_WATER");
-
-    }
-    
-    return material;
-}
 
 // // G4Tubs* boxOuter = new G4Tubs("outer_box", 0., 11*nm, 20*nm, 0., 360);
 // G4Box* boxOuter = new G4Box("outer_box",20*nm,20*nm,20*nm);

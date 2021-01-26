@@ -35,7 +35,12 @@ private:
     G4Material *OtherMaterial(G4String materialName);
     G4double fWrapperRadius;
     G4double fWrapperHeight;
+    G4bool fCutVolumes;
+    G4bool fCheckForOverlaps;
+    G4int fOverlapsResolution;
+    G4bool fQuitIfOverlap;
 
+    void ThrowOverlapError();
 };
 
 #endif

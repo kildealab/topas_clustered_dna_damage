@@ -69,7 +69,10 @@ public:
     G4LogicalVolume *BuildLogicFiber(std::vector<std::vector<DNAPlacementData> > *dnaVolPos,
                                      std::vector<G4ThreeVector> *posNucleo,
                                      std::map<G4ThreeVector, G4double> *posAndRadiusMap,
-                                     G4bool isVisu=false);
+                                     G4bool cutVolumes=true,
+                                     G4bool checkForOverlaps=true,
+                                     G4int overlapsResolution=100,
+                                     G4bool quitIfOverlap=true);
     
 private:
     G4int fVerbose;
@@ -105,7 +108,7 @@ private:
     //----------------------------------------------------------------------------------------------
     std::map<G4String, std::vector<G4LogicalVolume *> >* CreateNucleosomeCuttedSolidsAndLogicals(
         std::vector<DNAPlacementData> *nucleosomeVolumePositions, 
-        std::map<G4ThreeVector, G4double> *posAndRadiusMap, G4bool isVisu=false);
+        std::map<G4ThreeVector, G4double> *posAndRadiusMap, G4bool cutVolumes=true);
 
     //----------------------------------------------------------------------------------------------
     // Cut algorithm to avoid overlaps. Idea: we must have a reference and a target. The reference
@@ -127,6 +130,7 @@ private:
     //----------------------------------------------------------------------------------------------
     void CalculateMeanVol(std::map<G4String, std::vector<G4LogicalVolume *> > *logicSolidsMap);
 
+    void ThrowOverlapError();
 };
 
 #endif // GEOVOLUMEV2_HH

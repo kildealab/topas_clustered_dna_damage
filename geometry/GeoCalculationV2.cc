@@ -65,11 +65,11 @@ void GeoCalculationV2::Initialize()
     fSugarTMPRadius = (0.270e-9)*fFactor*m;
     fSugarTHFRadius = (0.290e-9)*fFactor*m;
     //G4double ratio = 1.7;
-    fSugarTMPRadiusWater = fSugarTMPRadius*1.7;
-    fSugarTHFRadiusWater = fSugarTHFRadius*1.7;
+    fSugarTMPRadiusWater = fSugarTMPRadius*1.15;
+    fSugarTHFRadiusWater = fSugarTHFRadius*1.15;
 
     fBaseRadius = (0.300e-9)*fFactor*m;
-    fBaseRadiusWater = fBaseRadius*1.7;
+    fBaseRadiusWater = fBaseRadius*1.15;
 
     // Coming from PDB barycenter
     fPosSugarTMP1 = G4ThreeVector(0.863185*fFactor*nm,-0.209463*fFactor*nm,-0.211519*fFactor*nm);
