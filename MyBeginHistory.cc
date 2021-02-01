@@ -21,7 +21,7 @@
 
 MyBeginHistory::MyBeginHistory(TsParameterManager* pM, const G4Run* run, const G4Event* event)
 {
-	G4cout << "~~~~~~~~~~~~~~Beginning history (event) #: " << event->GetEventID() << G4endl;
+	// G4cout << "~~~~~~~~~~~~~~Beginning history (event) #: " << event->GetEventID() << G4endl;
 	
 	// // Demonstrate that BeginHistory can call some other user-provided class
 	// new MyExtraClass();

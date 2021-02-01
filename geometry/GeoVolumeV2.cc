@@ -105,7 +105,7 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
     // fiberVis.SetVisibility(false);
     fiberVis.SetForceSolid(true);
     // fiberVis.SetForceWireframe(true);
-    G4LogicalVolume* logicFiber = new G4LogicalVolume(solidFiber, fWater,"logic fiber");
+    G4LogicalVolume* logicFiber = new G4LogicalVolume(solidFiber, fWater,"logic_fiber");
     logicFiber->SetVisAttributes(fiberVis);
 
     //----------------------------------------------------------------------------------------------
@@ -116,7 +116,7 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
     G4VisAttributes histoneVis(G4Colour(1.0, 1.0, 1.0) );
     // histoneVis.SetVisibility(false);
     histoneVis.SetForceSolid(true);
-    G4LogicalVolume* logicHistone = new G4LogicalVolume(solidHistone,fWater,"logic histone");
+    G4LogicalVolume* logicHistone = new G4LogicalVolume(solidHistone,fWater,"logic_histone");
     logicHistone->SetVisAttributes(histoneVis);
 
     //----------------------------------------------------------------------------------------------
@@ -534,12 +534,12 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* GeoVolumeV2::CreateNucleosom
         G4VSolid* sugarTMP2;
 
         // hydration shells
-        G4VSolid* sugarTMP1Water;
-        G4VSolid* sugarTHF1Water;
-        G4VSolid* base1Water;
-        G4VSolid* base2Water;
-        G4VSolid* sugarTHF2Water;
-        G4VSolid* sugarTMP2Water;
+        // G4VSolid* sugarTMP1Water;
+        // G4VSolid* sugarTHF1Water;
+        // G4VSolid* base1Water;
+        // G4VSolid* base2Water;
+        // G4VSolid* sugarTHF2Water;
+        // G4VSolid* sugarTMP2Water;
 
 
         // if cutVolumes is true it means we will run calculations so create the cut volumes
@@ -555,12 +555,12 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* GeoVolumeV2::CreateNucleosom
             sugarTMP2 = CreateCutSolid(solidSugarTMP,posSugarTMP2,posAndRadiusMap, "sugarTMP", true);
 
             // hydration shells
-            sugarTMP1Water = CreateCutSolid(solidSugarTMPWater,posSugarTMP1,posAndRadiusMap);
-            sugarTHF1Water = CreateCutSolid(solidSugarTHFWater,posSugarTHF1,posAndRadiusMap);
-            base1Water = CreateCutSolid(solidBaseWater,posBase1,posAndRadiusMap);
-            base2Water = CreateCutSolid(solidBaseWater,posBase2,posAndRadiusMap);
-            sugarTHF2Water = CreateCutSolid(solidSugarTHFWater,posSugarTHF2,posAndRadiusMap);
-            sugarTMP2Water = CreateCutSolid(solidSugarTMPWater,posSugarTMP2,posAndRadiusMap);
+            // sugarTMP1Water = CreateCutSolid(solidSugarTMPWater,posSugarTMP1,posAndRadiusMap);
+            // sugarTHF1Water = CreateCutSolid(solidSugarTHFWater,posSugarTHF1,posAndRadiusMap);
+            // base1Water = CreateCutSolid(solidBaseWater,posBase1,posAndRadiusMap);
+            // base2Water = CreateCutSolid(solidBaseWater,posBase2,posAndRadiusMap);
+            // sugarTHF2Water = CreateCutSolid(solidSugarTHFWater,posSugarTHF2,posAndRadiusMap);
+            // sugarTMP2Water = CreateCutSolid(solidSugarTMPWater,posSugarTMP2,posAndRadiusMap);
         }
         // if cutVolumes is false it means we just want to visualize the geometry so we do not need
         // the cutted volumes. Just assign the uncut solids to the empty variables.
@@ -575,12 +575,12 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* GeoVolumeV2::CreateNucleosom
             sugarTMP2 = solidSugarTMP;
 
             // hydration shells
-            sugarTMP1Water = solidSugarTMPWater;
-            sugarTHF1Water = solidSugarTHFWater;
-            base1Water = solidBaseWater;
-            base2Water = solidBaseWater;
-            sugarTHF2Water = solidSugarTHFWater;
-            sugarTMP2Water = solidSugarTMPWater;
+            // sugarTMP1Water = solidSugarTMPWater;
+            // sugarTHF1Water = solidSugarTHFWater;
+            // base1Water = solidBaseWater;
+            // base2Water = solidBaseWater;
+            // sugarTHF2Water = solidSugarTHFWater;
+            // sugarTMP2Water = solidSugarTMPWater;
         }
 
         // G4double sugarVolume = sugarTMP1->GetCubicVolume();
@@ -599,12 +599,12 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* GeoVolumeV2::CreateNucleosom
         G4LogicalVolume* logicSugarTHF2;
         G4LogicalVolume* logicSugarTMP2;
         // hydration shells
-        G4LogicalVolume* logicSugarTMP1Water;
-        G4LogicalVolume* logicSugarTHF1Water;
-        G4LogicalVolume* logicBase1Water;
-        G4LogicalVolume* logicBase2Water;
-        G4LogicalVolume* logicSugarTHF2Water;
-        G4LogicalVolume* logicSugarTMP2Water;
+        // G4LogicalVolume* logicSugarTMP1Water;
+        // G4LogicalVolume* logicSugarTHF1Water;
+        // G4LogicalVolume* logicBase1Water;
+        // G4LogicalVolume* logicBase2Water;
+        // G4LogicalVolume* logicSugarTHF2Water;
+        // G4LogicalVolume* logicSugarTMP2Water;
 
         // Creation of residues
         logicSugarTMP1 = new G4LogicalVolume(sugarTMP1,fWater,"logic_sugar_TMP_1");
@@ -615,12 +615,12 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* GeoVolumeV2::CreateNucleosom
         logicSugarTMP2 = new G4LogicalVolume(sugarTMP2,fWater,"logic_sugar_TMP_2");
 
         // Creation of hydration shells
-        logicSugarTMP1Water = new G4LogicalVolume(sugarTMP1Water,fWater,"logic_sugarTMP_1_hydra");
-        logicSugarTHF1Water = new G4LogicalVolume(sugarTHF1Water,fWater,"logic_sugarTHF_1_hydra");
-        logicBase1Water = new G4LogicalVolume(base1Water, fWater,"logic_base_1_hydra");
-        logicBase2Water = new G4LogicalVolume(base2Water, fWater,"logic_base_2_hydra");
-        logicSugarTHF2Water = new G4LogicalVolume(sugarTHF2Water,fWater,"logic_sugarTHF_2_hydra");
-        logicSugarTMP2Water = new G4LogicalVolume(sugarTMP2Water,fWater,"logic_sugarTMP_2_hydra");
+        // logicSugarTMP1Water = new G4LogicalVolume(sugarTMP1Water,fWater,"logic_sugarTMP_1_hydra");
+        // logicSugarTHF1Water = new G4LogicalVolume(sugarTHF1Water,fWater,"logic_sugarTHF_1_hydra");
+        // logicBase1Water = new G4LogicalVolume(base1Water, fWater,"logic_base_1_hydra");
+        // logicBase2Water = new G4LogicalVolume(base2Water, fWater,"logic_base_2_hydra");
+        // logicSugarTHF2Water = new G4LogicalVolume(sugarTHF2Water,fWater,"logic_sugarTHF_2_hydra");
+        // logicSugarTMP2Water = new G4LogicalVolume(sugarTMP2Water,fWater,"logic_sugarTMP_2_hydra");
 
         //------------------------------------------------------------------------------------------
         // Set visualization attributes for residues & hydration shell
@@ -632,23 +632,16 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* GeoVolumeV2::CreateNucleosom
         logicSugarTHF2->SetVisAttributes(visSugar);
         logicSugarTMP2->SetVisAttributes(visPhosphate);
 
-        logicSugarTMP1Water->SetVisAttributes(visHydration);
-        logicSugarTHF1Water->SetVisAttributes(visHydration);
-        logicBase1Water->SetVisAttributes(visHydration);
-        logicBase2Water->SetVisAttributes(visHydration);
-        logicSugarTHF2Water->SetVisAttributes(visHydration);
-        logicSugarTMP2Water->SetVisAttributes(visHydration);
+        // logicSugarTMP1Water->SetVisAttributes(visHydration);
+        // logicSugarTHF1Water->SetVisAttributes(visHydration);
+        // logicBase1Water->SetVisAttributes(visHydration);
+        // logicBase2Water->SetVisAttributes(visHydration);
+        // logicSugarTHF2Water->SetVisAttributes(visHydration);
+        // logicSugarTMP2Water->SetVisAttributes(visHydration);
 
         //------------------------------------------------------------------------------------------
         // Save the logical volumes in the output map
         //------------------------------------------------------------------------------------------
-        (*logicSolidsMap)["sugarTMP1Water"].push_back(logicSugarTMP1Water);
-        (*logicSolidsMap)["sugarTHF1Water"].push_back(logicSugarTHF1Water);
-        (*logicSolidsMap)["base1Water"].push_back(logicBase1Water);
-        (*logicSolidsMap)["base2Water"].push_back(logicBase2Water);
-        (*logicSolidsMap)["sugarTHF2Water"].push_back(logicSugarTHF2Water);
-        (*logicSolidsMap)["sugarTMP2Water"].push_back(logicSugarTMP2Water);
-
         (*logicSolidsMap)["sugarTMP1"].push_back(logicSugarTMP1);
         (*logicSolidsMap)["sugarTHF1"].push_back(logicSugarTHF1);
         (*logicSolidsMap)["base1"].push_back(logicBase1);
@@ -656,6 +649,12 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* GeoVolumeV2::CreateNucleosom
         (*logicSolidsMap)["sugarTHF2"].push_back(logicSugarTHF2);
         (*logicSolidsMap)["sugarTMP2"].push_back(logicSugarTMP2);
 
+        // (*logicSolidsMap)["sugarTMP1Water"].push_back(logicSugarTMP1Water);
+        // (*logicSolidsMap)["sugarTHF1Water"].push_back(logicSugarTHF1Water);
+        // (*logicSolidsMap)["base1Water"].push_back(logicBase1Water);
+        // (*logicSolidsMap)["base2Water"].push_back(logicBase2Water);
+        // (*logicSolidsMap)["sugarTHF2Water"].push_back(logicSugarTHF2Water);
+        // (*logicSolidsMap)["sugarTMP2Water"].push_back(logicSugarTMP2Water);
     } // complete iterating over all bp in single nucleotide
     
     // Note: each vector of the logicSolidsMap has 200 elements
@@ -859,12 +858,12 @@ void GeoVolumeV2::CalculateMeanVol(std::map<G4String, std::vector<G4LogicalVolum
     G4cout<<"sugarTHF2Vol="<<sugarTHF2Vol/m3*1e+27<<" nm3\n"<<G4endl;
     G4cout<<"sugarTMP2Vol="<<sugarTMP2Vol/m3*1e+27<<" nm3\n"<<G4endl;
 
-    G4cout<<"\nsugarTMP1WaterVol="<<sugarTMP1WaterVol/m3*1e+27<<" nm3"<<G4endl;
-    G4cout<<"\nsugarTHF1WaterVol="<<sugarTHF1WaterVol/m3*1e+27<<" nm3"<<G4endl;
-    G4cout<<"base1WaterVol="<<base1WaterVol/m3*1e+27<<" nm3"<<G4endl;
-    G4cout<<"base2WaterVol="<<base2WaterVol/m3*1e+27<<" nm3"<<G4endl;
-    G4cout<<"sugarTHF2WaterVol="<<sugarTHF2WaterVol/m3*1e+27<<" nm3\n"<<G4endl;
-    G4cout<<"sugarTMP2WaterVol="<<sugarTMP2WaterVol/m3*1e+27<<" nm3\n"<<G4endl;
+    // G4cout<<"\nsugarTMP1WaterVol="<<sugarTMP1WaterVol/m3*1e+27<<" nm3"<<G4endl;
+    // G4cout<<"\nsugarTHF1WaterVol="<<sugarTHF1WaterVol/m3*1e+27<<" nm3"<<G4endl;
+    // G4cout<<"base1WaterVol="<<base1WaterVol/m3*1e+27<<" nm3"<<G4endl;
+    // G4cout<<"base2WaterVol="<<base2WaterVol/m3*1e+27<<" nm3"<<G4endl;
+    // G4cout<<"sugarTHF2WaterVol="<<sugarTHF2WaterVol/m3*1e+27<<" nm3\n"<<G4endl;
+    // G4cout<<"sugarTMP2WaterVol="<<sugarTMP2WaterVol/m3*1e+27<<" nm3\n"<<G4endl;
 }
 
 //--------------------------------------------------------------------------------------------------
