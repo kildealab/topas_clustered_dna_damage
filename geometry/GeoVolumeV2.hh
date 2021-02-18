@@ -69,6 +69,7 @@ public:
     G4LogicalVolume *BuildLogicFiber(std::vector<std::vector<DNAPlacementData> > *dnaVolPos,
                                      std::vector<G4ThreeVector> *posNucleo,
                                      std::map<G4ThreeVector, G4double> *posAndRadiusMap,
+                                     G4Material* DNAMaterial,
                                      G4bool cutVolumes=true,
                                      G4bool checkForOverlaps=true,
                                      G4int overlapsResolution=100,

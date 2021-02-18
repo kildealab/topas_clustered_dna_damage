@@ -39,6 +39,7 @@ private:
     G4bool fCheckForOverlaps;
     G4int fOverlapsResolution;
     G4bool fQuitIfOverlap;
+    G4Material* fDNAMaterial;
 
     void ThrowOverlapError();
 };

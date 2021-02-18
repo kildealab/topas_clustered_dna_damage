@@ -42,6 +42,8 @@ GeoVolumeV2::GeoVolumeV2(G4int verbose, G4double factor) :
     // Water is defined from NIST material database
     fWater = G4NistManager::Instance()->FindOrBuildMaterial("G4_WATER");
 
+    // G4Material* H20_mod = G4NistManager::Instance()->BuildMaterialWithNewDensity("G4_WATER_MODIFIEDg","G4_WATER",1.100*g/cm3);
+
     // All the variables are set to -1 for checking in Build methods
     fSugarTHFRadiusWater = -1*fFactor*m;
     fSugarTMPRadiusWater = -1*fFactor*m;
@@ -80,6 +82,7 @@ GeoVolumeV2::~GeoVolumeV2()
 G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlacementData> >* dnaVolPos,
                                             std::vector<G4ThreeVector>* posNucleo,
                                             std::map<G4ThreeVector, G4double>* posAndRadiusMap,
+                                            G4Material* DNAMaterial,
                                             G4bool cutVolumes,
                                             G4bool checkForOverlaps,
                                             G4int overlapsResolution,
@@ -118,6 +121,12 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
     histoneVis.SetForceSolid(true);
     G4LogicalVolume* logicHistone = new G4LogicalVolume(solidHistone,fWater,"logic_histone");
     logicHistone->SetVisAttributes(histoneVis);
+
+    //----------------------------------------------------------------------------------------------
+    // Once the material for the fibre & nucleosomes has been defined (above), change the material
+    // for the DNA elements (residues).
+    //----------------------------------------------------------------------------------------------
+    fWater = DNAMaterial;
 
     //----------------------------------------------------------------------------------------------
     // Generate the cut solids
@@ -295,7 +304,7 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             // Sugar 1
             phys_name = "s_1_" + bp_index_string;
             G4PVPlacement* sTHF1 = new G4PVPlacement(rotCuts,posSugarTHF1,volMap->at("sugarTHF1")[j],
-                phys_name,logicFiber,false,count);
+                phys_name,logicFiber,false,count+100000);
             (*fpDnaMoleculePositions)["Desoxyribose"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF1.getX());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF1.getY());
@@ -305,7 +314,7 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             // Base 1
             phys_name = "b_1_" + bp_index_string;
             G4PVPlacement* base1 = new G4PVPlacement(rotCuts,posBase1,volMap->at("base1")[j],phys_name,
-                    logicFiber,false,count);
+                    logicFiber,false,count+200000);
             (*fpDnaMoleculePositions)["Base1"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Base1"].back().push_back(posBase1.getX());
             (*fpDnaMoleculePositions)["Base1"].back().push_back(posBase1.getY());
@@ -315,7 +324,7 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             // Base 2
             phys_name = "b_2_" + bp_index_string;
             G4PVPlacement* base2 = new G4PVPlacement(rotCuts,posBase2,volMap->at("base2")[j],phys_name,
-                                 logicFiber,false,count);
+                                 logicFiber,false,count+1200000);
             (*fpDnaMoleculePositions)["Base2"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Base2"].back().push_back(posBase2.getX());
             (*fpDnaMoleculePositions)["Base2"].back().push_back(posBase2.getY());
@@ -325,7 +334,7 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             // Sugar 2
             phys_name = "s_2_" + bp_index_string;
             G4PVPlacement* sTHF2 = new G4PVPlacement(rotCuts,posSugarTHF2,volMap->at("sugarTHF2")[j],
-                phys_name,logicFiber,false,count);
+                phys_name,logicFiber,false,count+1100000);
             (*fpDnaMoleculePositions)["Desoxyribose"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF2.getX());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF2.getY());
@@ -335,7 +344,7 @@ G4LogicalVolume* GeoVolumeV2::BuildLogicFiber(std::vector<std::vector<DNAPlaceme
             // Phosphate 2
             phys_name = "p_2_" + bp_index_string;
             G4PVPlacement* sTMP2 = new G4PVPlacement(rotCuts,posSugarTMP2,volMap->at("sugarTMP2")[j],
-                phys_name,logicFiber,false,count);
+                phys_name,logicFiber,false,count+1000000);
             (*fpDnaMoleculePositions)["Phosphate"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(posSugarTMP2.getX());
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(posSugarTMP2.getY());
@@ -466,9 +475,9 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* GeoVolumeV2::CreateNucleosom
     // green.SetForceSolid(true);
     // yellow.SetForceSolid(true);
 
-    G4VisAttributes visBase(G4Colour(0.92, 0.6, 0.6,0.3));    
-    G4VisAttributes visSugar(G4Colour(0.43, 0.62, 0.92,0.3));    
-    G4VisAttributes visPhosphate(G4Colour(0.71, 0.65, 0.84,0.3)); 
+    G4VisAttributes visBase(G4Colour(0.92, 0.6, 0.6));    
+    G4VisAttributes visSugar(G4Colour(0.43, 0.62, 0.92));    
+    G4VisAttributes visPhosphate(G4Colour(0.71, 0.65, 0.84)); 
     G4VisAttributes visHydration(G4Colour(0.27, 0.82, 0.82)); 
     visBase.SetForceSolid(true);
     visSugar.SetForceSolid(true);

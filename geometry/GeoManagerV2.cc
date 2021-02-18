@@ -64,13 +64,14 @@ void GeoManagerV2::Initialize(G4int BpNum, G4int NucleoNum)
 //--------------------------------------------------------------------------------------------------
 // Wrapper for the BuildLogicFiber method of GeoVolume. 
 //--------------------------------------------------------------------------------------------------
-G4LogicalVolume* GeoManagerV2::BuildLogicFiber(G4bool cutVolumes, G4bool checkForOverlaps, 
-    G4int overlapsResolution, G4bool quitIfOverlap)
+G4LogicalVolume* GeoManagerV2::BuildLogicFiber(G4Material* DNAMaterial, G4bool cutVolumes,
+    G4bool checkForOverlaps,  G4int overlapsResolution, G4bool quitIfOverlap)
 {
 
     G4LogicalVolume* lFiber = geoVolume->BuildLogicFiber(geoCalculation->GetAllDNAVolumePositions(),
                                                              geoCalculation->GetNucleosomePosition(),
                                                              geoCalculation->GetPosAndRadiusMap(),
+                                                             DNAMaterial,
                                                              cutVolumes,
                                                              checkForOverlaps,
                                                              overlapsResolution,

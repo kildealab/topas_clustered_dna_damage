@@ -39,7 +39,7 @@ public:
     //----------------------------------------------------------------------------------------------
     // Wrapper for the BuildLogicFiber method of GeoVolume. 
     //----------------------------------------------------------------------------------------------
-    G4LogicalVolume* BuildLogicFiber(G4bool cutVolumes=true, G4bool checkForOverlaps=true, 
+    G4LogicalVolume* BuildLogicFiber(G4Material* DNAMaterial, G4bool cutVolumes=true, G4bool checkForOverlaps=true, 
         G4int overlapsResolution=100, G4bool quitIfOverlap=true);
 
     //----------------------------------------------------------------------------------------------

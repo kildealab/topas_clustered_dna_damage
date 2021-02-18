@@ -196,7 +196,7 @@ G4VPhysicalVolume* TsFractalDNAV2::Construct()
         G4cout << "=======================================" << G4endl;
         G4cout << "Graphics (A) = " <<fGraphics << G4endl;
         G4cout << "=======================================" << G4endl;
-        lFiber = fGeoManager->BuildLogicFiber(fGraphics);
+        // lFiber = fGeoManager->BuildLogicFiber(fGraphics);
     }
     // finish = std::chrono::high_resolution_clock::now();
     // elapsed = finish-start;

@@ -36,6 +36,7 @@
 #include "G4SubtractionSolid.hh"
 #include "G4UnionSolid.hh"
 #include "G4NistManager.hh"
+#include "G4ThreeVector.hh"
 
 TsFiberV2::TsFiberV2(TsParameterManager* pM, TsExtensionManager* eM, TsMaterialManager* mM, TsGeometryManager* gM,
 			 TsVGeometryComponent* parentComponent, G4VPhysicalVolume* parentVolume, G4String& name) :
@@ -70,11 +71,19 @@ G4VPhysicalVolume* TsFiberV2::Construct()
     fOverlapsResolution = fPm->GetIntegerParameter("Ge/CheckForOverlapsResolution");
     fQuitIfOverlap = fPm->GetBooleanParameter("Ge/QuitIfOverlapDetected");
 
+    // Create modified water material to be used in DNA volumes (used to identify volumes in which
+    // to score damage)
+    // fDNAMaterial = G4NistManager::Instance()->BuildMaterialWithNewDensity("G4_WATER_CLONE","G4_WATER",1.000*g/cm3);
+    fDNAMaterial = G4NistManager::Instance()->FindOrBuildMaterial("G4_WATER");
+
     // Build DNA in the fiber
     fGeoManager->Initialize(numBpPerNucleosome,numNucleosomePerFiber);
-    G4LogicalVolume* lFiber = fGeoManager->BuildLogicFiber(fCutVolumes, fCheckForOverlaps, 
+    G4LogicalVolume* lFiber = fGeoManager->BuildLogicFiber(fDNAMaterial, fCutVolumes, fCheckForOverlaps, 
         fOverlapsResolution, fQuitIfOverlap);
-    G4VPhysicalVolume* pFiber = CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
+    // G4VPhysicalVolume* pFiber = CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
+    G4ThreeVector emptyPlacement = G4ThreeVector(0.,0.,0.);
+    G4VPhysicalVolume* pFiber = new G4PVPlacement(0,emptyPlacement,lFiber,"Fiber",fEnvelopeLog,false,0);
+
 
     // Check overlaps. Although topas does this check automatically, it does so before building
     // logic fiber. Need to redo afterwards (i.e. after adding DNA content).
