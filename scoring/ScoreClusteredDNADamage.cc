@@ -36,11 +36,16 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	// Default parameters
 	fThresDistForDSB = 10;
 	fThresEdepForSSB = 17.5 * eV;
+	fThresEdepForBD = 17.5 * eV;
 
 	fNumEdeps1 = 0;
 	fTotalEdep1 = 0.;
 	fNumEdeps2 = 0;
 	fTotalEdep2 = 0.;
+	fNumEdepsBD1 = 0;
+	fTotalEdepBD1 = 0.;
+	fNumEdepsBD2 = 0;
+	fTotalEdepBD2 = 0.;
 
 	
 	fNbOfAlgo = 1; // Used with variance reduction
@@ -49,30 +54,31 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 		fThresDistForDSB = fPm->GetIntegerParameter(GetFullParmName("BasePairDistanceForDefiningDSB"));
 	if ( fPm->ParameterExists(GetFullParmName("EnergyThresholdForHavingSSB")) )
 		fThresEdepForSSB = fPm->GetDoubleParameter(GetFullParmName("EnergyThresholdForHavingSSB"), "Energy");
+	if ( fPm->ParameterExists(GetFullParmName("EnergyThresholdForHavingBD")) )
+		fThresEdepForSSB = fPm->GetDoubleParameter(GetFullParmName("EnergyThresholdToInduceBD"), "Energy");
 	
 	// Unsure what this is
 	fBasePairDepth = 0;
 	if ( fPm->ParameterExists(GetFullParmName("BasePairPositionAtGeometricHierarchy")))
 		fBasePairDepth = fPm->GetIntegerParameter(GetFullParmName("BasePairPositionAtGeometricHierarchy"));
 	
-	// Use differently named materials for each strand to distinguish them (both are still just
-	// water).
-	// G4String strand1MaterialName = "G4_WATER";
-	// if ( fPm->ParameterExists(GetFullParmName("Strand1MaterialName")))
-	// 	strand1MaterialName = fPm->GetStringParameter(GetFullParmName("Strand1MaterialName"));
-
-	// G4String strand2MaterialName = "G4_WATER";
-	// if ( fPm->ParameterExists(GetFullParmName("Strand2MaterialName")))
-	// 	strand2MaterialName = fPm->GetStringParameter(GetFullParmName("Strand2MaterialName"));
-	
-	// fStrand1Material = GetMaterial(strand1MaterialName);
-	// fStrand2Material = GetMaterial(strand2MaterialName);
-
-
+	// Material of DNA residue volumes in which to score
 	G4String DNAMaterialName = "G4_WATER";
 	if ( fPm->ParameterExists(GetFullParmName("DNAMaterialName")))
 		DNAMaterialName = fPm->GetStringParameter(GetFullParmName("DNAMaterialName"));
 	fDNAMaterial = GetMaterial(DNAMaterialName);
+
+	// Determine order of magnitude of number of base pairs. Set fParser parameters accordingly
+	// for use in ProcessHits()
+	fNucleoNum = 0;
+	fBpNum = 0;
+	if ( fPm->ParameterExists(GetFullParmName("DnaNumNucleosomePerFiber")) )
+		fNucleoNum = fPm->GetIntegerParameter(GetFullParmName("DnaNumNucleosomePerFiber"));
+	if ( fPm->ParameterExists(GetFullParmName("DnaNumBpPerNucleosome")) )
+		fBpNum = fPm->GetIntegerParameter(GetFullParmName("DnaNumBpPerNucleosome"));
+	fNumBpMagnitude = CalculateIntegerMagnitude(fNucleoNum*fBpNum);
+	fParserResidue = fNumBpMagnitude*10;
+	fParserStrand = fNumBpMagnitude*100;
 	
 	// This is for variance reduction --> Not used with CharltonDNA
 	if ( fPm->ParameterExists(GetFullParmName("NumberOfSplit")) )
@@ -84,6 +90,7 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fNtuple->RegisterColumnI(&fDNAParent, "DNA parent geometry"); // Unsure. Not initiated in header either
 	fNtuple->RegisterColumnI(&fSSB,       "Single strand breaks"); // Number of SSB caused by this primary particle
 	fNtuple->RegisterColumnI(&fDSB,       "Double strand breaks"); // Number of DSB caused by this primary particle
+	fNtuple->RegisterColumnI(&fBD,       "Base damages"); // Number of DSB caused by this primary particle
 	
 	// Unsure what this does
 	// From the docs: disable automatic creation & filling of output, leaving this work entirely to
@@ -104,6 +111,8 @@ ScoreClusteredDNADamage::~ScoreClusteredDNADamage() {
 // when an interaction occurs in a sensitive volume (may or may not be energy deposit). In this case
 // simply record energy deposited in a given bp index, in 1 of 2 strands. Multiple energy
 // depositions occurring in the same volume are added together and recorded as one.
+//
+// Note about material filtering
 // 
 // From TsVScorer.hh:
 // Code in this method must be written as efficiently as possible. Do not directly access parameters
@@ -121,40 +130,55 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	
 	G4double edep = aStep->GetTotalEnergyDeposit(); ///eV;
 
-	G4String volName = aStep->GetPreStepPoint()->GetPhysicalVolume()->GetName();
-	G4cout << "volName = " << volName << G4endl;
-	// if (volName != "MyDNA" && volName != "MyDNA/Fiber")
-	// 	G4cout << "Energy deposited in " << volName << G4endl;
-	// if (volName == "p_1_2327") {
-	// 	G4cout << "-------------Hit in " << volName << G4endl;
-	// }
-
-	// ADD MATERIAL FILTER HERE OR MAYBE UNECESSARY IF IN PARAMETER FILE
-
 	//----------------------------------------------------------------------------------------------
 	// If this hit deposits energy: 
 	//----------------------------------------------------------------------------------------------
 	if (edep > 0) {
 		G4StepPoint* preStep = aStep->GetPreStepPoint();
+
+		// Get the indices defining the volume in which energy was deposited
 		// Can try making these member variables --> check performance
-		G4int num_res = -1;
 		G4int num_strand = -1;
+		G4int num_res = -1;
 		G4int num_nucleotide = -1;
 
 		G4int volID = preStep->GetPhysicalVolume()->GetCopyNo();
 
+		// num_strand = volID / fParserStrand;
+		// num_res = (volID - (num_strand*fParserStrand)) / fParserResidue;
+		// num_nucleotide = volID - (num_strand*fParserStrand) - (num_res*fParserResidue);
 		num_strand = volID / 1000000;
 		num_res = (volID - (num_strand*1000000)) / 100000;
 		num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
 
 
+		// if (num_strand == 0) {
+		// 	fNumEdeps1++;
+		// 	fTotalEdep1 += edep;
+		// }
+		// else if (num_strand == 1) {
+		// 	fNumEdeps2++;
+		// 	fTotalEdep2 += edep;
+		// }
 		if (num_strand == 0) {
-			fNumEdeps1++;
-			fTotalEdep1 += edep;
+			if (num_res == 0 || num_res == 1) {
+				fNumEdeps1++;
+				fTotalEdep1 += edep;
+			}
+			else if (num_res == 2) {
+				fNumEdepsBD1++;
+				fTotalEdepBD1 += edep;
+			}
 		}
 		else if (num_strand == 1) {
-			fNumEdeps2++;
-			fTotalEdep2 += edep;
+			if (num_res == 0 || num_res == 1) {
+				fNumEdeps2++;
+				fTotalEdep2 += edep;
+			}
+			else if (num_res == 2) {
+				fNumEdepsBD2++;
+				fTotalEdepBD2 += edep;
+			}
 		}
 
 		if ( num_strand == 0 || num_strand == 1 ) {
@@ -219,17 +243,25 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 	fEventID = GetEventID();
 
-	if (fEventID == 9) {
-		G4cout << "#################################################################################################################################" << G4endl;
-		if (fNumEdeps1 > 0 ){
-			G4cout << "Number of edeps in strand 1: " << fNumEdeps1 << G4endl;
-			G4cout << "Total energy deposited: " << fTotalEdep1/eV << G4endl;
-		}
-		if (fNumEdeps2 > 0){
-			G4cout << "Number of edeps in strand 2: " << fNumEdeps2 << G4endl;
-			G4cout << "Total energy deposited: " << fTotalEdep2/eV << G4endl;
-		}
-	}
+	// if (fEventID == 499) {
+	// 	G4cout << "#################################################################################################################################" << G4endl;
+	// 	// if (fNumEdeps1 > 0 ){
+	// 	// 	G4cout << "Number of edeps in strand 1: " << fNumEdeps1 << G4endl;
+	// 	// 	G4cout << "Total energy deposited: " << fTotalEdep1/eV << G4endl;
+	// 	// }
+	// 	// if (fNumEdeps2 > 0){
+	// 	// 	G4cout << "Number of edeps in strand 2: " << fNumEdeps2 << G4endl;
+	// 	// 	G4cout << "Total energy deposited: " << fTotalEdep2/eV << G4endl;
+	// 	// }
+	// 	G4cout << "Number of edeps in strand 1 backbone: " << fNumEdeps1 << G4endl;
+	// 	G4cout << "Total energy deposited in strand 1 backbone: " << fTotalEdep1/eV << G4endl;
+	// 	G4cout << "Number of edeps in strand 1 bases: " << fNumEdepsBD1 << G4endl;
+	// 	G4cout << "Total energy deposited in strand 1 bases: " << fTotalEdepBD1/eV << G4endl;
+	// 	G4cout << "Number of edeps in strand 2: " << fNumEdeps2 << G4endl;
+	// 	G4cout << "Total energy deposited: " << fTotalEdep2/eV << G4endl;
+	// 	G4cout << "Number of edeps in strand 2 bases: " << fNumEdepsBD2 << G4endl;
+	// 	G4cout << "Total energy deposited in strand 2 bases: " << fTotalEdepBD2/eV << G4endl;
+	// }
 
 
 	// Include if want to print out map of energy depositions to validate algorithm is functioning
@@ -265,13 +297,13 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 		// if (fSSB > 0 && fDSB > 0) {
 		// 	G4cout << "#################################################################################################################################" << G4endl;
 		// 	G4cout << "Event #" << fEventID << G4endl;
-		// 	for (G4int i = 0; i < 200; i++) {
+		// 	for (G4int i = 0; i < 18000; i++) {
 		// 		G4cout << fGenVEdepStrand1_COPY[0][0][i]/eV << "         " << fGenVEdepStrand2_COPY[0][0][i]/eV << G4endl;
 		// 	}
 		// 	G4cout << "#################################################################################################################################" << G4endl;
 		// }
 
-		// Clear member variables for next event
+		// Clear member variables for next fibre
 		fVEdepStrand1.erase(fVEdepStrand1.begin(), fVEdepStrand1.end());
 		fVEdepStrand2.erase(fVEdepStrand2.begin(), fVEdepStrand2.end());
 	}
@@ -345,7 +377,7 @@ void ScoreClusteredDNADamage::ComputeStrandBreaks(G4int* sb, G4int cluster)
 				fVEdepStrand2[cluster].erase( fVEdepStrand2[cluster].begin() );
 			} while ( ((nucl1-nucl2)>fThresDistForDSB) && (!fVEdepStrand2[cluster].empty()) );
 			
-			// This is the scenario described above, wherein index of SSB2 exceeds SSB1 by more tahn
+			// This is the scenario described above, wherein index of SSB2 exceeds SSB1 by more than
 			// DSB threshold, so return SSB2 to queue for processing with next SSB1
 			if ( nucl2-nucl1 > fThresDistForDSB )
 			{
@@ -398,5 +430,24 @@ void ScoreClusteredDNADamage::ComputeStrandBreaks(G4int* sb, G4int cluster)
 	sb[0]=ssb1+ssb2;
 	sb[1]=dsb;
 }
+
+
+
+//--------------------------------------------------------------------------------------------------
+// Calculate the order of magnitude (base 10) of a positive integer value.
+//--------------------------------------------------------------------------------------------------
+G4int ScoreClusteredDNADamage::CalculateIntegerMagnitude(G4int value) {
+	G4int orderOfMagnitude = 0;
+	G4double base = 10.0;
+	G4double valueD = value*1.0;
+
+	while (valueD >= base) {
+		valueD = valueD/base;
+		orderOfMagnitude++;
+	}
+
+	return static_cast<int>(pow(10,orderOfMagnitude));
+}
+
 
 
