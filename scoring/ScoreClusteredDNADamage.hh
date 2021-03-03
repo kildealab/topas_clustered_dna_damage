@@ -11,6 +11,7 @@
 
 #include <map>
 
+struct DamageCluster;
 
 class G4Material;
 
@@ -30,6 +31,18 @@ private:
     void ComputeStrandBreaks(G4int*, G4int);
 
     G4int CalculateIntegerMagnitude(G4int);
+
+    std::vector<G4int> RecordSimpleDamage(G4double,std::map<G4int,std::map<G4int, G4double>>);
+    // std::vector<std::array<G4int,2>> RecordDSB(G4int,std::vector<G4int>,std::vector<G4int>);
+    // std::vector<std::array<G4int,2>> RecordDSB();
+    std::vector<G4int> RecordDSB1D();
+    // std::vector<std::array<G4int,2>> RecordComplexDSB();
+    std::vector<std::vector<G4int>> RecordComplexDSB();
+    void RecordClusteredDamage();
+    void AddDamageToCluster(DamageCluster&, G4int, G4int, G4bool);
+    void RecordCluster(DamageCluster&);
+
+    std::vector<std::array<G4int,2>> CombineSimpleDamage();
     
 private:
     // G4Material* fStrand1Material;
@@ -45,6 +58,7 @@ private:
     G4int fThresDistForDSB;
     G4double fThresEdepForSSB;
     G4double fThresEdepForBD;
+    G4int fThresDistForCluster;
 
     G4int fNumEdeps1;
     G4double fTotalEdep1;
@@ -64,8 +78,10 @@ private:
     // map1 (key, map2) --> map2 (key, double)
     // First index specifies someting to do with variance reduction / track splitting
     // Second index specifies the bp index
-    std::map<G4int, std::map<G4int, G4double> > fVEdepStrand1;
-    std::map<G4int, std::map<G4int, G4double> > fVEdepStrand2;
+    std::map<G4int, std::map<G4int, G4double> > fVEdepStrand1Backbone;
+    std::map<G4int, std::map<G4int, G4double> > fVEdepStrand2Backbone;
+    std::map<G4int, std::map<G4int, G4double> > fVEdepStrand1Base;
+    std::map<G4int, std::map<G4int, G4double> > fVEdepStrand2Base;
     
     // Records energy deposited in bp in one of the strands of the DNA double helix in a
     // triple-nested map structure
@@ -73,21 +89,63 @@ private:
     // First index specifies the DNA fibre
     // Second index specifies someting to do with variance reduction / track splitting
     // Third index specifies the bp index
-    std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand1;
-    std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand2;
+    std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand1Backbone;
+    std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand2Backbone;
+    std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand1Base;
+    std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand2Base;
     
     G4int fNbOfAlgo;
     G4int fEventID;
     G4int fDNAParent; // if any
-    G4int fSSB;
-    G4int fDSB;
-    G4int fBD;
+    // G4int fSSB;
+    // G4int fDSB;
+
+    G4int fTotalSSB;
+    G4int fTotalBD;
+    G4int fTotalDSB;
+    G4int fTotalComplexDSB;
+    G4int fTotalNonDSBCluster;
 
     G4int fBasePairDepth;
     
-    G4String fStrand1VolumeName;
-    G4String fStrand2VolumeName;
-    
-    
+    // G4String fStrand1VolumeName;
+    // G4String fStrand2VolumeName;
+
+    // Constant variables to identify damage types
+    static const G4int fIdSSB = 0;
+    static const G4int fIdBD = 1;
+    static const G4int fIdDSB = 2;
+
+    // Vectors to hold indices of simple damages
+    std::vector<G4int> fIndicesSSB1;
+    std::vector<G4int> fIndicesSSB2;
+    std::vector<G4int> fIndicesBD1;
+    std::vector<G4int> fIndicesBD2;
+
+    // Vector to hold indices of DSBs
+    std::vector<std::array<G4int,2>> fIndicesDSB;
+    std::vector<G4int>  fIndicesDSB1D;
+
+    // Clustered damage handling
+    std::vector<std::array<G4int,2>> fIndicesSimple; // first # is bp index, second # is 0 or 1 to represent SSB or BD
+    std::vector<G4int> fComplexDSBSizes; // Vector of lengths of complex DSB (in # of bp)
+    std::vector<G4int> fComplexDSBNumSSB;
+    std::vector<G4int> fComplexDSBNumBD;
+    std::vector<G4int> fComplexDSBNumDSB;
+    std::vector<G4int> fComplexDSBNumDamage;
+
+    std::vector<G4int> fNonDSBClusterSizes; // Vector of lengths of complex DSB (in # of bp)
+    std::vector<G4int> fNonDSBClusterNumSSB;
+    std::vector<G4int> fNonDSBClusterNumBD;
+    std::vector<G4int> fNonDSBClusterNumDamage;
+
+    // std::vector<G4int> fIndicesSSB;
+    // std::vector<G4int> fIndicesBD;
+    // std::vector<std::vector<G4int>> fIndicesComplexDSBAll; // All indices per complex DSB stored
+    // std::vector<std::array<G4int,2>> fIndicesComplexDSBEnds; // Two ending indices only
+    // G4int fNumDamageInComplexDSB; // Running total of any damage in all complex DSB (can divide by # of complex DSB to get avg)
+    // G4int fNumSSBInComplexDSB; // Running total of SSB in all complex DSB (can divide by # of complex DSB to get avg)
+    // G4int fNumBDInComplexDSB; // Running total of BD in complex DSB (can divide by # of complex DSB to get avg)
+    // G4int fNumDSBInComplexDSB; // Running total of DSB in complex DSB (can divide by # of complex DSB to get avg)
 };
 #endif
