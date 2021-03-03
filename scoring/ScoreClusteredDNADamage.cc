@@ -19,16 +19,20 @@
 
 #include <map>
 
+//--------------------------------------------------------------------------------------------------
+// Struct used to hold parameters of interest for a given cluter of DNA damage.
+// Used in RecordClusteredDNADamage().
+//--------------------------------------------------------------------------------------------------
 struct DamageCluster {
 	DamageCluster() : numSSB(0), numBD(0), numDSB(0), start(0), end(0), size(0){}
 
-	G4int numSSB;
-	G4int numBD;
-	G4int numDSB;
+	G4int numSSB; // # of SSB in cluster
+	G4int numBD; // # of base damages in cluster
+	G4int numDSB; // # of DSB in cluster
 
-	G4int start;
-	G4int end;
-	G4int size;
+	G4int start; // starting bp index of cluster
+	G4int end; // ending bp index of cluster
+	G4int size; // bp range of cluster (end-start+1)
 };
 
 
@@ -52,15 +56,6 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fThresEdepForSSB = 17.5 * eV;
 	fThresEdepForBD = 17.5 * eV;
 	fThresDistForCluster = 40;
-
-	fNumEdeps1 = 0;
-	fTotalEdep1 = 0.;
-	fNumEdeps2 = 0;
-	fTotalEdep2 = 0.;
-	fNumEdepsBD1 = 0;
-	fTotalEdepBD1 = 0.;
-	fNumEdepsBD2 = 0;
-	fTotalEdepBD2 = 0.;
 
 	fTotalSSB = 0;
 	fTotalBD = 0;
@@ -113,11 +108,6 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fNtuple->RegisterColumnI(&fTotalBD, "Base damages"); // Number of BD caused by this primary particle
 	fNtuple->RegisterColumnI(&fTotalComplexDSB, "Complex DSBs"); // Number of Complex DSB caused by this primary particle
 	fNtuple->RegisterColumnI(&fTotalNonDSBCluster, "Non-DSB clusters"); // Number of Non-DSB Clusters caused by this primary particle
-
-	// fNtuple->RegisterColumnI(&fEventID, "Event number"); // ID of primary particle / event / history
-	// fNtuple->RegisterColumnI(&fDNAParent, "DNA parent geometry"); // Unsure. Not initiated in header either
-	// fNtuple->RegisterColumnI(&fSSB,       "Single strand breaks"); // Number of SSB caused by this primary particle
-	// fNtuple->RegisterColumnI(&fDSB,       "Double strand breaks"); // Number of DSB caused by this primary particle
 	
 	// Unsure what this does
 	// From the docs: disable automatic creation & filling of output, leaving this work entirely to
@@ -136,15 +126,14 @@ ScoreClusteredDNADamage::~ScoreClusteredDNADamage() {
 //--------------------------------------------------------------------------------------------------
 // ProcessHits method. This method is called for every hit in the sensitive detector volume, i.e.
 // when an interaction occurs in a sensitive volume (may or may not be energy deposit). In this case
-// simply record energy deposited in a given bp index, in 1 of 2 strands. Multiple energy
-// depositions occurring in the same volume are added together and recorded as one.
+// simply record energy deposited in a given bp index, in either the backbone or base of either 
+// strand # 1 or strand #2 (4 separate energy depositio maps). Multiple energy depositions occurring
+// in the same volume are added together and recorded as one.
 //
-// Note about material filtering
-// 
-// From TsVScorer.hh:
-// Code in this method must be written as efficiently as possible. Do not directly access parameters
-// from here. Instead, access and cache them in the method UpdateForParameterChange described above.
-// Do not do string comparisons if you can help it. They tend to be slow
+// Note that the copy number of the volume is used to determine in which volume the energy
+// deposition took place. This is faster than using string comparisons. Note this method is only
+// called for energy depositions in the sensitive volumes (i.e. residues) by using material
+// filtering, as defined in the parameter file with "OnlyIncludeIfInMaterial" parameter.
 //--------------------------------------------------------------------------------------------------
 G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 {
@@ -178,35 +167,6 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 		num_res = (volID - (num_strand*1000000)) / 100000;
 		num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
 
-
-		// if (num_strand == 0) {
-		// 	fNumEdeps1++;
-		// 	fTotalEdep1 += edep;
-		// }
-		// else if (num_strand == 1) {
-		// 	fNumEdeps2++;
-		// 	fTotalEdep2 += edep;
-		// }
-		// if (num_strand == 0) {
-		// 	if (num_res == 0 || num_res == 1) {
-		// 		fNumEdeps1++;
-		// 		fTotalEdep1 += edep;
-		// 	}
-		// 	else if (num_res == 2) {
-		// 		fNumEdepsBD1++;
-		// 		fTotalEdepBD1 += edep;
-		// 	}
-		// }
-		// else if (num_strand == 1) {
-		// 	if (num_res == 0 || num_res == 1) {
-		// 		fNumEdeps2++;
-		// 		fTotalEdep2 += edep;
-		// 	}
-		// 	else if (num_res == 2) {
-		// 		fNumEdepsBD2++;
-		// 		fTotalEdepBD2 += edep;
-		// 	}
-		// }
 
 		if ( num_strand == 0 || num_strand == 1 ) {
 			G4TouchableHistory* touchable = (G4TouchableHistory*)(preStep->GetTouchable());
@@ -268,41 +228,24 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	return false;
 }
 
+
 //--------------------------------------------------------------------------------------------------
-// This method is called at the end of the event (primary particle & its secondaries). Determine the 
-// number of SSB and DSB caused by the current event & record in ntuple for output.
-//
-// **Might be a good idea to test how long it takes to compute # of strand breaks
+// This method is called at the end of the event (primary particle & its secondaries). Process the
+// energy deposoition maps populated by the ProcessHits() method to determine the number of various
+// types of DNA damage. Record these results to output.
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 	fEventID = GetEventID();
 
-	// RecordClusteredDamage();
-
-	// if (fEventID == 499) {
-	// 	G4cout << "#################################################################################################################################" << G4endl;
-	// 	// if (fNumEdeps1 > 0 ){
-	// 	// 	G4cout << "Number of edeps in strand 1: " << fNumEdeps1 << G4endl;
-	// 	// 	G4cout << "Total energy deposited: " << fTotalEdep1/eV << G4endl;
-	// 	// }
-	// 	// if (fNumEdeps2 > 0){
-	// 	// 	G4cout << "Number of edeps in strand 2: " << fNumEdeps2 << G4endl;
-	// 	// 	G4cout << "Total energy deposited: " << fTotalEdep2/eV << G4endl;
-	// 	// }
-	// 	G4cout << "Number of edeps in strand 1 backbone: " << fNumEdeps1 << G4endl;
-	// 	G4cout << "Total energy deposited in strand 1 backbone: " << fTotalEdep1/eV << G4endl;
-	// 	G4cout << "Number of edeps in strand 1 bases: " << fNumEdepsBD1 << G4endl;
-	// 	G4cout << "Total energy deposited in strand 1 bases: " << fTotalEdepBD1/eV << G4endl;
-	// 	G4cout << "Number of edeps in strand 2: " << fNumEdeps2 << G4endl;
-	// 	G4cout << "Total energy deposited: " << fTotalEdep2/eV << G4endl;
-	// 	G4cout << "Number of edeps in strand 2 bases: " << fNumEdepsBD2 << G4endl;
-	// 	G4cout << "Total energy deposited in strand 2 bases: " << fTotalEdepBD2/eV << G4endl;
-	// }
+	// Include following line if want to create a fake, predefined energy map to validate scoring
+	// CreateFakeEnergyMap();
 
 	// Include if want to print out map of energy depositions to validate algorithm is functioning
 	// properly.
 	// std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand1Backbone_COPY = fGenVEdepStrand1Backbone;
 	// std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand2Backbone_COPY = fGenVEdepStrand2Backbone;
+	// std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand1Base_COPY = fGenVEdepStrand1Base;
+	// std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand2Base_COPY = fGenVEdepStrand2Base;
 
 	// Iterate over all DNA fibres 
 	for ( auto& energyAtStrands : fGenVEdepStrand1Backbone ) {
@@ -316,7 +259,7 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 		fVEdepStrand1Base = fGenVEdepStrand1Base[parentDepth];
 		fVEdepStrand2Base = fGenVEdepStrand2Base[parentDepth];
 		fDNAParent = parentDepth;
-		
+
 		// Iterate over track splitting (only 1 iteration if no splitting) and compute the # of SSB
 		// and DSB induced by the current event. Fill the nTuple with these data.
 		for ( int i = 0; i < fNbOfAlgo; i++ ) {
@@ -324,6 +267,7 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 			fIndicesSSB2 = RecordSimpleDamage(fThresEdepForSSB,fVEdepStrand2Backbone);
 			fIndicesBD1 = RecordSimpleDamage(fThresEdepForBD,fVEdepStrand1Base);
 			fIndicesBD2 = RecordSimpleDamage(fThresEdepForBD,fVEdepStrand2Base);
+
 			// fIndicesDSB = RecordDSB();
 			fIndicesDSB1D = RecordDSB1D();
 
@@ -339,33 +283,23 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 			if (fTotalSSB > 0 || fTotalBD > 0 || fTotalDSB > 0 || fTotalComplexDSB > 0 || fTotalNonDSBCluster > 0) {
 				fNtuple->Fill();
 
-				G4cout << "##########################################################" << G4endl;
-				G4cout << "Event #" << fEventID << G4endl;
-				G4cout << "# of SSBs = " << fTotalSSB << G4endl;
-				G4cout << "# of BDs = " << fTotalBD << G4endl;
-				G4cout << "# of simple DSBs = " << fTotalDSB << G4endl;
-				G4cout << "# of complex DSBs = " << fTotalComplexDSB << G4endl;
-				G4cout << "# of non-DSB clusters = " << fTotalNonDSBCluster << G4endl;
-				G4cout << "##########################################################" << G4endl;
+				// If want to output results to command line
+				// PrintDNADamageToConsole();
 			}
-
-			// G4int sb[2] = {0, 0}; // 2-element array to store the # of SSB and DSB
-			// ComputeStrandBreaks(sb, i);
-
-			// Record SSB & DSB to appropriate variables, required to fill ntuple output
-			// fSSB = sb[0];
-			// fDSB = sb[1];
-			// if ( fSSB > 0 || fDSB > 0 )
-			// 	fNtuple->Fill();
 		}
 
 		// Include if want to print out map of energy depositions to validate algorithm is
 		// functioning properly.
 		// if (fSSB > 0 && fDSB > 0) {
+		// if (fEventID == 221) {
 		// 	G4cout << "#################################################################################################################################" << G4endl;
 		// 	G4cout << "Event #" << fEventID << G4endl;
-		// 	for (G4int i = 0; i < 18000; i++) {
-		// 		G4cout << fGenVEdepStrand1Backbone_COPY[0][0][i]/eV << "         " << fGenVEdepStrand2Backbone_COPY[0][0][i]/eV << G4endl;
+		// 	int colwidth = 15;
+		// 	for (G4int i = 0; i < 3000; i++) {
+		// 		G4cout << std::left << "i = " << std::setw(colwidth) << i << " | " << std::setw(colwidth) << fGenVEdepStrand1Backbone_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand1Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Backbone_COPY[0][0][i]/eV << G4endl;
+		// 		// if (fGenVEdepStrand1Backbone_COPY[0][0][i]/eV > 0 || fGenVEdepStrand1Base_COPY[0][0][i]/eV > 0 || fGenVEdepStrand2Base_COPY[0][0][i]/eV > 0 || fGenVEdepStrand2Backbone_COPY[0][0][i]/eV > 0) {
+		// 		// 	G4cout << std::left << "i = " << i << " | " << std::setw(colwidth) << fGenVEdepStrand1Backbone_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand1Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Backbone_COPY[0][0][i]/eV << G4endl;
+		// 		// }
 		// 	}
 		// 	G4cout << "#################################################################################################################################" << G4endl;
 		// }
@@ -373,10 +307,20 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 		// Clear member variables for next fibre
 		fVEdepStrand1Backbone.erase(fVEdepStrand1Backbone.begin(), fVEdepStrand1Backbone.end());
 		fVEdepStrand2Backbone.erase(fVEdepStrand2Backbone.begin(), fVEdepStrand2Backbone.end());
+		fVEdepStrand1Base.erase(fVEdepStrand1Base.begin(), fVEdepStrand1Base.end());
+		fVEdepStrand2Base.erase(fVEdepStrand2Base.begin(), fVEdepStrand2Base.end());
+
+		fTotalSSB = 0;
+		fTotalBD = 0;
+		fTotalDSB = 0;
+		fTotalComplexDSB = 0;
+		fTotalNonDSBCluster = 0;
 	}
 	// Clear member variables for next event
 	fGenVEdepStrand1Backbone.erase(fGenVEdepStrand1Backbone.begin(), fGenVEdepStrand1Backbone.end());
 	fGenVEdepStrand2Backbone.erase(fGenVEdepStrand2Backbone.begin(), fGenVEdepStrand2Backbone.end());
+	fGenVEdepStrand1Base.erase(fGenVEdepStrand1Base.begin(), fGenVEdepStrand1Base.end());
+	fGenVEdepStrand2Base.erase(fGenVEdepStrand2Base.begin(), fGenVEdepStrand2Base.end());
 }
 
 
@@ -418,6 +362,7 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB1D()
 {
 	std::vector<G4int> indicesDSB1D;
 
+	// Fake data for testing
 	// fIndicesSSB1 = {0,3,5,9};
 	// fIndicesSSB2 = {2,8};
 	// fThresDistForDSB = 1;
@@ -466,6 +411,7 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB1D()
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::RecordClusteredDamage()
 {
+	// Fake data for testing
 	// fIndicesSimple = {
 	// 	{1,1},
 	// 	{2,0},
@@ -540,25 +486,6 @@ void ScoreClusteredDNADamage::RecordClusteredDamage()
 
 	// Finally, divide number of DSB by two
 	fTotalDSB = fTotalDSB/2;
-
-	// G4cout << "--------------------------------------------------" << G4endl;
-	// G4cout << "# of Complex DSBs = " << fTotalComplexDSB << G4endl;
-	// for (int i = 0; i < fTotalComplexDSB; i++) {
-	// 	G4cout << "====================" << G4endl;
-	// 	G4cout << "Num SSB = " << fComplexDSBNumSSB[i] << G4endl;
-	// 	G4cout << "Num BD = " << fComplexDSBNumBD[i] << G4endl;
-	// 	G4cout << "Num DSB = " << fComplexDSBNumDSB[i] << G4endl;
-	// 	G4cout << "Num Damage = " << fComplexDSBNumDamage[i] << G4endl;
-	// }
-	// G4cout << "--------------------------------------------------" << G4endl;
-	// G4cout << "# of Non-DSB Clusters = " << fTotalNonDSBCluster << G4endl;
-	// for (int i = 0; i < fTotalNonDSBCluster; i++) {
-	// 	G4cout << "====================" << G4endl;
-	// 	G4cout << "Num SSB = " << fNonDSBClusterNumSSB[i] << G4endl;
-	// 	G4cout << "Num BD = " << fNonDSBClusterNumBD[i] << G4endl;
-	// 	G4cout << "Num Damage = " << fNonDSBClusterNumDamage[i] << G4endl;
-	// }
-	// G4cout << "--------------------------------------------------" << G4endl;
 }
 
 
@@ -568,8 +495,13 @@ void ScoreClusteredDNADamage::RecordClusteredDamage()
 // variable.
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::RecordCluster(DamageCluster& cluster) {
+	// Handle Simple DSB (i.e. not a cluster, so record nothing & reset)
+	if (cluster.numDSB == 2 && cluster.numSSB == 0 && cluster.numBD == 0) {
+		fTotalDSB += 2;
+		cluster = DamageCluster();
+	}
 	// Handle Complex DSB
-	if (cluster.numDSB > 0) {
+	else if (cluster.numDSB > 0) {
 		cluster.numDSB = cluster.numDSB/2;
 
 		fComplexDSBSizes.push_back(cluster.end - cluster.start + 1);
@@ -643,6 +575,7 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 	// G4cout << "COMBINING SIMPLE DAMAGE" << G4endl;
 	std::vector<std::array<G4int,2>> indicesSimple;
 
+	// Fake data for testing
 	// fIndicesSSB1 = {3,4,5,7,9};
 	// fIndicesBD1 = {1,4,7};
 	// fIndicesSSB2 = {1,12};
@@ -724,6 +657,7 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 		itDSB++;
 	}
 
+	// If want to output full list of simple damages:
 	// G4cout << "------------------------------------------" << G4endl;
 	// for (int i = 0; i < indicesSimple.size(); i++) {
 	// 	G4cout << "site = " << indicesSimple[i][0] << ", type = " << indicesSimple[i][1] << G4endl;
@@ -732,128 +666,6 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 
 	return indicesSimple;
 }
-
-
-
-
-//--------------------------------------------------------------------------------------------------
-// Process map of energy depositions (total energy deposited per nucleotide) spanning two strands of
-// a single DNA fibre, to calculate the  number of SSB and DSB present. The number of SSBs in each
-// strand are recorded separately but are summed at the end and recorded in sb. The number of DSB is
-// also recorded in sb. 
-//
-// This class was taken from Geant4/examples/extended/medical/dna/pdb4dna
-//--------------------------------------------------------------------------------------------------
-void ScoreClusteredDNADamage::ComputeStrandBreaks(G4int* sb, G4int cluster)
-{
-	// sb quantities
-	G4int ssb1=0;
-	G4int ssb2=0;
-	G4int dsb=0;
-	
-	// nucleotide id and energy deposit for each strand
-	G4int nucl1;
-	G4int nucl2;
-	G4double edep1;
-	G4double edep2;
-	
-	//----------------------------------------------------------------------------------------------
-	// Read through energy depositions in the first DNA strand one at a time. For each, determine
-	// if is SSB1, then examine the second DNA strand. Increment through depositions in the second
-	// strand, recording SSB2 where applicable, and stopping when the nucleotide index in second
-	// strand is either (A) within DSB-distance-threshold of SSB1 or (B) greater than that of SSB1.
-	// Once either of those criteria is met, determine if the current SSB1 & SSB2 are close enough
-	// to constitute a DSB. If so, record as such. If not, in the case of (B), SSB2 is not recorded
-	// and is left in the queue to be processed with next SSB1 as potential DSB. Then exit iterating
-	// through second strand and return to first strand.
-	//
-	// Note that iterators through maps proceed in order of nucleotide index, which is required
-	// for the logic of this algorithm.
-	//----------------------------------------------------------------------------------------------
-	while ( !fVEdepStrand1Backbone[cluster].empty() )
-	{
-		// Extract nucleotide index & energy deposit, then delete the entry from the map
-		nucl1 = fVEdepStrand1Backbone[cluster].begin()->first;
-		edep1 = fVEdepStrand1Backbone[cluster].begin()->second;
-		fVEdepStrand1Backbone[cluster].erase( fVEdepStrand1Backbone[cluster].begin() );
-
-		// Temporarily record as SSB in strand1. May remove later if DSB
-		if ( edep1 >= fThresEdepForSSB )
-		{
-			ssb1++;
-		}
-		
-		// Look at strand2, record all SSB2 up until same index as SSB1 and potential DSB within
-		// plus-minus threshold of SSB1
-		if ( !fVEdepStrand2Backbone[cluster].empty() )
-		{
-			do
-			{
-				nucl2 = fVEdepStrand2Backbone[cluster].begin()->first;
-				edep2 = fVEdepStrand2Backbone[cluster].begin()->second;
-
-				// SSB in strand2
-				if ( edep2 >= fThresEdepForSSB )
-				{
-					ssb2++;
-				}
-				fVEdepStrand2Backbone[cluster].erase( fVEdepStrand2Backbone[cluster].begin() );
-			} while ( ((nucl1-nucl2)>fThresDistForDSB) && (!fVEdepStrand2Backbone[cluster].empty()) );
-			
-			// This is the scenario described above, wherein index of SSB2 exceeds SSB1 by more than
-			// DSB threshold, so return SSB2 to queue for processing with next SSB1
-			if ( nucl2-nucl1 > fThresDistForDSB )
-			{
-				fVEdepStrand2Backbone[cluster][nucl2]=edep2;
-				if ( edep2 >= fThresEdepForSSB )
-				{
-					ssb2--;
-				}
-			}
-			
-			// Handle case of DSB. Whether SSB1 or SSB2 is "further ahead" in the chain doesn't matter
-			if ( std::abs(nucl2-nucl1) <= fThresDistForDSB )
-			{
-				if ( ( edep2 >= fThresEdepForSSB ) &&
-					( edep1 >= fThresEdepForSSB ) )
-				{
-					ssb1--;
-					ssb2--;
-					dsb++;
-				}
-			}
-		}
-	}
-	
-	//----------------------------------------------------------------------------------------------
-	// Potentially some energy deposits (and thus SSBs) remain at end of the above iteration. Handle
-	// these here, for either strand.
-	//----------------------------------------------------------------------------------------------
-	while ( !fVEdepStrand1Backbone[cluster].empty() )
-	{
-		nucl1 = fVEdepStrand1Backbone[cluster].begin()->first;
-		edep1 = fVEdepStrand1Backbone[cluster].begin()->second;
-		if ( edep1 >= fThresEdepForSSB )
-		{
-			ssb1++;
-		}
-		fVEdepStrand1Backbone[cluster].erase( fVEdepStrand1Backbone[cluster].begin() );
-	}
-	
-	while ( !fVEdepStrand2Backbone[cluster].empty() )
-	{
-		nucl2 = fVEdepStrand2Backbone[cluster].begin()->first;
-		edep2 = fVEdepStrand2Backbone[cluster].begin()->second;
-		if ( edep2 >= fThresEdepForSSB )
-		{
-			ssb2++;
-		}
-		fVEdepStrand2Backbone[cluster].erase( fVEdepStrand2Backbone[cluster].begin() );
-	}
-	sb[0]=ssb1+ssb2;
-	sb[1]=dsb;
-}
-
 
 
 //--------------------------------------------------------------------------------------------------
@@ -872,6 +684,68 @@ G4int ScoreClusteredDNADamage::CalculateIntegerMagnitude(G4int value) {
 	return static_cast<int>(pow(10,orderOfMagnitude));
 }
 
+
+//--------------------------------------------------------------------------------------------------
+// Print DNA damage inforamtion for the current event (as per fEventID) to console
+//--------------------------------------------------------------------------------------------------
+void ScoreClusteredDNADamage::PrintDNADamageToConsole() {
+	G4cout << "##########################################################" << G4endl;
+	G4cout << "Event #" << fEventID << G4endl;
+	G4cout << "# of SSBs = " << fTotalSSB << G4endl;
+	G4cout << "# of BDs = " << fTotalBD << G4endl;
+	G4cout << "# of simple DSBs = " << fTotalDSB << G4endl;
+	G4cout << "# of complex DSBs = " << fTotalComplexDSB << G4endl;
+	for (G4int i=0; i < fTotalComplexDSB; i++) {
+		G4cout << "-----------------------------" << G4endl;
+		G4cout << "\tSize = " << fComplexDSBSizes[i] << G4endl;
+		G4cout << "\tNum SSB = " << fComplexDSBNumSSB[i] << G4endl;
+		G4cout << "\tNum BD = " << fComplexDSBNumBD[i] << G4endl;
+		G4cout << "\tNum DSB = " << fComplexDSBNumDSB[i] << G4endl;
+		G4cout << "\tNum damage = " << fComplexDSBNumDamage[i] << G4endl;
+	}
+	G4cout << "# of non-DSB clusters = " << fTotalNonDSBCluster << G4endl;
+	for (G4int i=0; i < fTotalNonDSBCluster; i++) {
+		G4cout << "-----------------------------" << G4endl;
+		G4cout << "\tSize = " << fNonDSBClusterSizes[i] << G4endl;
+		G4cout << "\tNum SSB = " << fNonDSBClusterNumSSB[i] << G4endl;
+		G4cout << "\tNum BD = " << fNonDSBClusterNumBD[i] << G4endl;
+		G4cout << "\tNum damage = " << fNonDSBClusterNumDamage[i] << G4endl;
+	}
+	G4cout << "##########################################################" << G4endl;				
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// Create a fake map of energy depositions to validate scoring & clustering behaviour.
+//--------------------------------------------------------------------------------------------------
+void ScoreClusteredDNADamage::CreateFakeEnergyMap() {
+	// Test cases to validate damage clustering algorithm is functioning properly
+	G4double eng = 20./eV;
+	fThresDistForCluster = 4;
+	fThresDistForDSB = 4;
+
+	// Test case 1
+	std::map<G4int,G4double> back1 = {{1,eng},{5,eng},{10,eng}};
+	std::map<G4int,G4double> base1 = {{10,eng},{12,eng}};
+	std::map<G4int,G4double> base2 = {{11,eng},{17,eng}};
+	std::map<G4int,G4double> back2 = {{1,eng},{3,eng}};
+
+	// Test case 2 
+	// std::map<G4int,G4double> back1 = {{6,eng}};
+	// std::map<G4int,G4double> base1 = {{15,eng},{20,eng}};
+	// std::map<G4int,G4double> base2 = {{15,eng}};
+	// std::map<G4int,G4double> back2 = {{2,eng},{10,eng}};
+
+
+	fGenVEdepStrand1Backbone[0][0] = back1;
+	fGenVEdepStrand1Base[0][0] = base1;
+	fGenVEdepStrand2Base[0][0] = base2;
+	fGenVEdepStrand2Backbone[0][0] = back2;
+	// fVEdepStrand1Backbone[0] = back1;
+	// fVEdepStrand1Base[0] = base1;
+	// fVEdepStrand2Base[0] = base2;
+	// fVEdepStrand2Backbone[0] = back2;
+}
 
 
 // //--------------------------------------------------------------------------------------------------

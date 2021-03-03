@@ -43,6 +43,10 @@ private:
     void RecordCluster(DamageCluster&);
 
     std::vector<std::array<G4int,2>> CombineSimpleDamage();
+
+    // Methods used in validating scoring functionality
+    void CreateFakeEnergyMap();
+    void PrintDNADamageToConsole();
     
 private:
     // G4Material* fStrand1Material;
@@ -55,24 +59,20 @@ private:
     G4int fParserStrand;
     G4int fParserResidue;
 
-    G4int fThresDistForDSB;
     G4double fThresEdepForSSB;
     G4double fThresEdepForBD;
+    G4int fThresDistForDSB;
     G4int fThresDistForCluster;
 
-    G4int fNumEdeps1;
-    G4double fTotalEdep1;
-    G4int fNumEdeps2;
-    G4double fTotalEdep2;
-    G4int fNumEdepsBD1;
-    G4double fTotalEdepBD1;
-    G4int fNumEdepsBD2;
-    G4double fTotalEdepBD2;
-
-    // G4int fThreshDistCluster;
-    // G4double fThreshEdepForBD;
+    // G4int fNumEdeps1;
+    // G4double fTotalEdep1;
+    // G4int fNumEdeps2;
+    // G4double fTotalEdep2;
+    // G4int fNumEdepsBD1;
+    // G4double fTotalEdepBD1;
+    // G4int fNumEdepsBD2;
+    // G4double fTotalEdepBD2;
     
-
     // Records energy deposited in bp in one of the strands of the DNA double helix in a
     // double-nested map structure
     // map1 (key, map2) --> map2 (key, double)
@@ -97,8 +97,6 @@ private:
     G4int fNbOfAlgo;
     G4int fEventID;
     G4int fDNAParent; // if any
-    // G4int fSSB;
-    // G4int fDSB;
 
     G4int fTotalSSB;
     G4int fTotalBD;
@@ -108,9 +106,6 @@ private:
 
     G4int fBasePairDepth;
     
-    // G4String fStrand1VolumeName;
-    // G4String fStrand2VolumeName;
-
     // Constant variables to identify damage types
     static const G4int fIdSSB = 0;
     static const G4int fIdBD = 1;
@@ -138,14 +133,5 @@ private:
     std::vector<G4int> fNonDSBClusterNumSSB;
     std::vector<G4int> fNonDSBClusterNumBD;
     std::vector<G4int> fNonDSBClusterNumDamage;
-
-    // std::vector<G4int> fIndicesSSB;
-    // std::vector<G4int> fIndicesBD;
-    // std::vector<std::vector<G4int>> fIndicesComplexDSBAll; // All indices per complex DSB stored
-    // std::vector<std::array<G4int,2>> fIndicesComplexDSBEnds; // Two ending indices only
-    // G4int fNumDamageInComplexDSB; // Running total of any damage in all complex DSB (can divide by # of complex DSB to get avg)
-    // G4int fNumSSBInComplexDSB; // Running total of SSB in all complex DSB (can divide by # of complex DSB to get avg)
-    // G4int fNumBDInComplexDSB; // Running total of BD in complex DSB (can divide by # of complex DSB to get avg)
-    // G4int fNumDSBInComplexDSB; // Running total of DSB in complex DSB (can divide by # of complex DSB to get avg)
 };
 #endif
