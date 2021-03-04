@@ -260,8 +260,8 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 		fVEdepStrand2Base = fGenVEdepStrand2Base[parentDepth];
 		fDNAParent = parentDepth;
 
-		// Iterate over track splitting (only 1 iteration if no splitting) and compute the # of SSB
-		// and DSB induced by the current event. Fill the nTuple with these data.
+		// Iterate over track splitting (only 1 iteration if no splitting), compute the # of 
+		// various types of DNA damage, and fill the ntuple scorer accordingly
 		for ( int i = 0; i < fNbOfAlgo; i++ ) {
 			fIndicesSSB1 = RecordSimpleDamage(fThresEdepForSSB,fVEdepStrand1Backbone);
 			fIndicesSSB2 = RecordSimpleDamage(fThresEdepForSSB,fVEdepStrand2Backbone);
@@ -281,21 +281,20 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 			RecordClusteredDamage();
 
 			if (fTotalSSB > 0 || fTotalBD > 0 || fTotalDSB > 0 || fTotalComplexDSB > 0 || fTotalNonDSBCluster > 0) {
-				fNtuple->Fill();
-
 				// If want to output results to command line
-				// PrintDNADamageToConsole();
+				PrintDNADamageToConsole();
+				fNtuple->Fill();
 			}
 		}
 
 		// Include if want to print out map of energy depositions to validate algorithm is
 		// functioning properly.
 		// if (fSSB > 0 && fDSB > 0) {
-		// if (fEventID == 221) {
+		// if (fEventID == 57) {
 		// 	G4cout << "#################################################################################################################################" << G4endl;
 		// 	G4cout << "Event #" << fEventID << G4endl;
 		// 	int colwidth = 15;
-		// 	for (G4int i = 0; i < 3000; i++) {
+		// 	for (G4int i = 0; i < 18000; i++) {
 		// 		G4cout << std::left << "i = " << std::setw(colwidth) << i << " | " << std::setw(colwidth) << fGenVEdepStrand1Backbone_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand1Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Backbone_COPY[0][0][i]/eV << G4endl;
 		// 		// if (fGenVEdepStrand1Backbone_COPY[0][0][i]/eV > 0 || fGenVEdepStrand1Base_COPY[0][0][i]/eV > 0 || fGenVEdepStrand2Base_COPY[0][0][i]/eV > 0 || fGenVEdepStrand2Backbone_COPY[0][0][i]/eV > 0) {
 		// 		// 	G4cout << std::left << "i = " << i << " | " << std::setw(colwidth) << fGenVEdepStrand1Backbone_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand1Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Backbone_COPY[0][0][i]/eV << G4endl;
@@ -315,6 +314,17 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 		fTotalDSB = 0;
 		fTotalComplexDSB = 0;
 		fTotalNonDSBCluster = 0;
+
+		fComplexDSBSizes.clear();
+		fComplexDSBNumSSB.clear();
+		fComplexDSBNumBD.clear();
+		fComplexDSBNumDSB.clear();
+		fComplexDSBNumDamage.clear();
+
+		fNonDSBClusterSizes.clear();
+		fNonDSBClusterNumSSB.clear();
+		fNonDSBClusterNumBD.clear();
+		fNonDSBClusterNumDamage.clear();
 	}
 	// Clear member variables for next event
 	fGenVEdepStrand1Backbone.erase(fGenVEdepStrand1Backbone.begin(), fGenVEdepStrand1Backbone.end());
