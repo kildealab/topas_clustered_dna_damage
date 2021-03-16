@@ -40,7 +40,6 @@ public:
     
 private:
     
-    G4Material *OtherMaterial(G4String materialName);
     G4double fWrapperRadius;
     G4double fWrapperHeight;
     G4bool fCutVolumes;
@@ -120,12 +119,6 @@ private:
                              std::map<G4ThreeVector, G4double> *tarMap,
                              G4String volName = "",
                              G4bool in = false);
-
-    //----------------------------------------------------------------------------------------------
-    // Helper function used by buildLogicFiber() in verbose mode (i.e. if want to output the mean
-    // volume of cut residue and water volumes).
-    //----------------------------------------------------------------------------------------------
-    void CalculateMeanVol(std::map<G4String, std::vector<G4LogicalVolume *> > *logicSolidsMap);
 
     void ThrowOverlapError();
 };

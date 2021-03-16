@@ -1,20 +1,8 @@
 // Component for TsFiberV2
 //
-// ********************************************************************
-// *                                                                  *
-// * This file is part of the TOPAS-nBio extensions to the            *
-// *   TOPAS Simulation Toolkit.                                      *
-// * The TOPAS-nBio extensions are freely available under the license *
-// *   agreement set forth at: https://topas-nbio.readthedocs.io/     *
-// *                                                                  *
-// ********************************************************************
-//
-// Code that reads in the DNA fiber geometry from the DNAFabric software package tool
-// More details about the fiber geometry can be found in:
-// Meylan et al. (2016) Commputer Physics Comunications, 204, 159
-// Any report or published results obtained using the Geant4-DNA software
-// shall cite the following Geant4-DNA collaboration publication:
-
+//**************************************************************************************************
+// 
+//**************************************************************************************************
 
 #include "TsFiberV2.hh"
 #include "GeoManagerV2.hh"
@@ -36,7 +24,6 @@
 #include "G4RotationMatrix.hh"
 #include "G4SubtractionSolid.hh"
 #include "G4UnionSolid.hh"
-#include "G4NistManager.hh"
 #include "G4ThreeVector.hh"
 
 // #include "G4VSolid.hh"
@@ -63,6 +50,10 @@ struct DNAPlacementData
     G4ThreeVector posSugarTMP2;
 };
 
+
+//--------------------------------------------------------------------------------------------------
+// Constructor
+//--------------------------------------------------------------------------------------------------
 TsFiberV2::TsFiberV2(TsParameterManager* pM, TsExtensionManager* eM, TsMaterialManager* mM, TsGeometryManager* gM,
 			 TsVGeometryComponent* parentComponent, G4VPhysicalVolume* parentVolume, G4String& name) :
 TsVGeometryComponent(pM, eM, mM, gM, parentComponent, parentVolume, name)
@@ -73,7 +64,9 @@ TsVGeometryComponent(pM, eM, mM, gM, parentComponent, parentVolume, name)
     fpDnaMoleculePositions = new std::map<G4String, std::vector<std::vector<G4double> > >();
 }
 
-
+//--------------------------------------------------------------------------------------------------
+// Destructor
+//--------------------------------------------------------------------------------------------------
 TsFiberV2::~TsFiberV2()
 {
      delete fGeoManager;
@@ -82,7 +75,9 @@ TsFiberV2::~TsFiberV2()
      delete fpDnaMoleculePositions;
 }
 
-
+//--------------------------------------------------------------------------------------------------
+// Construct method
+//--------------------------------------------------------------------------------------------------
 G4VPhysicalVolume* TsFiberV2::Construct()
 {
 	BeginConstruction();
@@ -106,7 +101,7 @@ G4VPhysicalVolume* TsFiberV2::Construct()
     fUseG4Volumes = fPm->GetBooleanParameter("Ge/MyDNA/UseG4Volumes");
 
     // ---------------------------------------------------------------------------------------------
-    // New stuff
+    // New stuff: read-in fibre geometry from GeoCalculation object
     // ---------------------------------------------------------------------------------------------
     fVerbose = 0;
     fFactor = 1.;
@@ -128,8 +123,6 @@ G4VPhysicalVolume* TsFiberV2::Construct()
     fFiberDeltaAngle = fGeoCalculation->GetFiberDeltaAngle() ;
     fFiberNbNuclPerTurn = fGeoCalculation->GetFiberNbNuclPerTurn();
 
-    // fWaterName = fParentComponent->GetResolvedMaterialName();
-    // fWater = G4NistManager::Instance()->FindOrBuildMaterial(fWaterName);
     fWaterName = "G4_WATER";
     fWater = GetMaterial(fWaterName);
 
@@ -145,10 +138,7 @@ G4VPhysicalVolume* TsFiberV2::Construct()
     // ---------------------------------------------------------------------------------------------
 
 
-    // Build DNA in the fiber
-    // fGeoManager->Initialize(numBpPerNucleosome,numNucleosomePerFiber);
-    // G4LogicalVolume* lFiber = fGeoManager->BuildLogicFiber(fDNAMaterial, fCutVolumes, fCheckForOverlaps, 
-    //     fOverlapsResolution, fQuitIfOverlap);
+    // Build DNA in the fiber, save as a logical volumes
     G4LogicalVolume* lFiber = BuildLogicFiber(fGeoCalculation->GetAllDNAVolumePositions(),
                      fGeoCalculation->GetNucleosomePosition(),
                      fGeoCalculation->GetPosAndRadiusMap(),
@@ -157,27 +147,16 @@ G4VPhysicalVolume* TsFiberV2::Construct()
                      fOverlapsResolution,
                      fQuitIfOverlap);
 
-    // pFiber = CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
-    // G4VPhysicalVolume* pFiber = CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
-    // G4ThreeVector emptyPlacement = G4ThreeVector(0.,0.,0.);
-    // G4VPhysicalVolume* pFiber = new G4PVPlacement(0,emptyPlacement,lFiber,"Fiber",fEnvelopeLog,false,0);
-    // G4VPhysicalVolume* pFiber;
+    // Create physical volume for the fibre & place in the world
     if (fUseG4Volumes){
         G4ThreeVector emptyPlacement = G4ThreeVector(0.,0.,0.);
         pFiber = new G4PVPlacement(0,emptyPlacement,lFiber,"Fiber",fEnvelopeLog,false,0);
     }
-    // else{
-    //     pFiber = CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
-    // }
+    else{
+        pFiber = CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
+    }
 
-
-    // Check overlaps. Although topas does this check automatically, it does so before building
-    // logic fiber. Need to redo afterwards (i.e. after adding DNA content).
-    // if (fCheckForOverlaps) {
-    //     if(pFiber->CheckOverlaps(fOverlapsResolution) && fQuitIfOverlap)
-    //         ThrowOverlapError();
-    // }
-
+    // Report total time required to generate geometry
     auto finish_total = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_total = finish_total-start_total;
     G4cout << "Total time to generate geometry = " << elapsed_total.count() << " s" << G4endl;  
@@ -185,32 +164,6 @@ G4VPhysicalVolume* TsFiberV2::Construct()
 	return fEnvelopePhys;
 }
 
-G4Material * TsFiberV2::OtherMaterial(G4String materialName)
-{
-    G4Material * material(0);
-    
-    if(materialName == "G4_WATER"){
-        // Water is defined from NIST material database
-        G4NistManager * man = G4NistManager::Instance();
-        material = man->FindOrBuildMaterial("G4_WATER");
-
-    }
-    
-    return material;
-}
-
-//--------------------------------------------------------------------------------------------------
-// Helper function used if a geometrical overlap is detected. Return the standard Topas message
-// about geometry overlaps and exit gracefully.
-//--------------------------------------------------------------------------------------------------
-void TsFiberV2::ThrowOverlapError() 
-{
-    G4cout << "Topas is quitting due to the above geometry overlap problem." << G4endl;
-    G4cout << "If you still want the TOPAS session to continue" << G4endl;
-    G4cout << "(such as to use visualization to study the overlap)," << G4endl;
-    G4cout << "Set the parameter Ge/QuitIfOverlapDetected to False" << G4endl;
-    exit(0);
-}
 
 //--------------------------------------------------------------------------------------------------
 // Create and return a logical volume for a chromatin fiber. 
@@ -248,7 +201,6 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
     fiberVis.SetForceSolid(true);
     // fiberVis.SetForceWireframe(true);
 
-    // G4LogicalVolume* logicFiber = new G4LogicalVolume(solidFiber, fWater,"logic_fiber");
     G4LogicalVolume* logicFiber;
     if (fUseG4Volumes) {
         logicFiber = new G4LogicalVolume(solidFiber,fWater,"logic_fiber");
@@ -257,20 +209,6 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
         logicFiber = CreateLogicalVolume("logic_fiber",fWaterName,solidFiber);
     }  
     logicFiber->SetVisAttributes(fiberVis);
-
-    if (!fUseG4Volumes){
-        pFiber = CreatePhysicalVolume("Fiber", logicFiber, fEnvelopePhys);
-    }
-
-        // G4VPhysicalVolume* pFiber;
-        // if (fUseG4Volumes){
-        // G4ThreeVector emptyPlacement = G4ThreeVector(0.,0.,0.);
-        // pFiber = new G4PVPlacement(0,emptyPlacement,logicFiber,"Fiber",fEnvelopeLog,false,0);
-        // }
-        // else{
-        // pFiber = CreatePhysicalVolume("Fiber", logicFiber, fEnvelopePhys);
-        // }
-    // }
 
     //----------------------------------------------------------------------------------------------
     // Create the histone volume
@@ -281,6 +219,7 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
     // histoneVis.SetVisibility(false);
     histoneVis.SetForceSolid(true);
     // G4LogicalVolume* logicHistone = new G4LogicalVolume(solidHistone,fWater,"logic_histone");
+
     G4LogicalVolume* logicHistone;
     if (fUseG4Volumes) {
         logicHistone = new G4LogicalVolume(solidHistone,fWater,"logic_histone");
@@ -291,17 +230,11 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
     logicHistone->SetVisAttributes(histoneVis);
 
     //----------------------------------------------------------------------------------------------
-    // Once the material for the fibre & nucleosomes has been defined (above), change the material
-    // for the DNA elements (residues).
-    //----------------------------------------------------------------------------------------------
-    // fWater = DNAMaterial;
-
-    //----------------------------------------------------------------------------------------------
     // Generate the cut solids
     //----------------------------------------------------------------------------------------------
     // For the positions, we only use the second (number 1) nucleosome.
-    // Indeed, it is a "middle" nucleosome and, thus, the two extemities will be cutted.
-    // If we took the first, we would have a first volume non cutted and, thus, some overlaps.
+    // Indeed, it is a "middle" nucleosome and, thus, the two extremities will be cut to allow for 
+    // proper linking of one nucleosome to the next.
     // Note dnaVolPos is paramater passed to BuildLogicFiber() that is essentially the output of 
     // GeoCalculation::CalculateDNAPosition(). I.e. all nucleotide positions around 3 basis
     // histone complexes.
@@ -319,12 +252,6 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
             = CreateNucleosomeCuttedSolidsAndLogicals(nuclVolPos, posAndRadiusMap, cutVolumes);
     // Resulting volMap is indexed by one of 12 entries (6 residues & 6 hydration shells). Each
     // entry has 200 elements, each corresponding to a distinct logical volume
-
-    // Print the mean volume number of the DNA volumes
-    if(fVerbose>2)
-    {
-        CalculateMeanVol(volMap);
-    }
 
     //----------------------------------------------------------------------------------------------
     // Save the positions of all residue volumes in the first nucleosome (not all 3) in vectors
@@ -346,8 +273,7 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
     // Get the bp volume positions of the middle basis nucleosome (which is used to generate cut 
     // solids) and save in a vector to be accessed & rotated in the following forloop
     for(int j=0;j<fBpNum;++j)
-    {
-        
+    {        
         posSugarTMP1 = dnaVolPos->at(1)[j].posSugarTMP1;
         posSugarTHF1 = dnaVolPos->at(1)[j].posSugarTHF1;
         posBase1 = dnaVolPos->at(1)[j].posBase1;
@@ -460,18 +386,17 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
             //--------------------------------------------------------------------------------------
             G4int bp_index = (i*fBpNum)+j;
             G4String bp_index_string = std::to_string(bp_index);
+
             // Phosphate 1
+            //--------------------------------------------------------------------------------------
             G4String phys_name = "p_1_" + bp_index_string;
-            // G4PVPlacement* sTMP1 = new G4PVPlacement(rotCuts,posSugarTMP1,volMap->at("sugarTMP1")[j],
-            //     phys_name,logicFiber,false,count);
-            // G4VPhysicalVolume* sTMP1 = CreatePhysicalVolume(phys_name,count,false,volMap->at("sugarTMP1")[j],rotCuts,&posSugarTMP1,pFiber);
             G4VPhysicalVolume* sTMP1;
             if (fUseG4Volumes){
                 sTMP1 = new G4PVPlacement(rotCuts,posSugarTMP1,volMap->at("sugarTMP1")[j],
                     phys_name,logicFiber,false,count);
             }
             else{
-                sTMP1 = CreatePhysicalVolume(phys_name,count,true,volMap->at("sugarTMP1")[j],rotCuts,&posSugarTMP1,pFiber);
+                sTMP1 = CreatePhysicalVolume(phys_name,count,true,volMap->at("sugarTMP1")[j],rotCuts,&posSugarTMP1,logicFiber);
             }
             (*fpDnaMoleculePositions)["Phosphate"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(posSugarTMP1.getX());
@@ -479,18 +404,17 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(posSugarTMP1.getZ());
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(count);
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(1);
+
             // Sugar 1
+            //--------------------------------------------------------------------------------------
             phys_name = "s_1_" + bp_index_string;
-            // G4PVPlacement* sTHF1 = new G4PVPlacement(rotCuts,posSugarTHF1,volMap->at("sugarTHF1")[j],
-            //     phys_name,logicFiber,false,count+100000);
-            // G4VPhysicalVolume* sTHF1 = CreatePhysicalVolume(phys_name,count+100000,false,volMap->at("sugarTHF1")[j],rotCuts,&posSugarTHF1,pFiber);
             G4VPhysicalVolume* sTHF1;
             if (fUseG4Volumes){
                 sTHF1 = new G4PVPlacement(rotCuts,posSugarTHF1,volMap->at("sugarTHF1")[j],
                     phys_name,logicFiber,false,count+100000);
             }
             else{
-                sTHF1 = CreatePhysicalVolume(phys_name,count+100000,true,volMap->at("sugarTHF1")[j],rotCuts,&posSugarTHF1,pFiber);
+                sTHF1 = CreatePhysicalVolume(phys_name,count+100000,true,volMap->at("sugarTHF1")[j],rotCuts,&posSugarTHF1,logicFiber);
             }
             (*fpDnaMoleculePositions)["Desoxyribose"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF1.getX());
@@ -498,18 +422,17 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF1.getZ());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(count);
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(1);
+
             // Base 1
+            //--------------------------------------------------------------------------------------
             phys_name = "b_1_" + bp_index_string;
-            // G4PVPlacement* base1 = new G4PVPlacement(rotCuts,posBase1,volMap->at("base1")[j],phys_name,
-            //         logicFiber,false,count+200000);
-            // G4VPhysicalVolume* base1 = CreatePhysicalVolume(phys_name,count+200000,false,volMap->at("base1")[j],rotCuts,&posBase1,pFiber);
             G4VPhysicalVolume* base1;
             if (fUseG4Volumes){
                 base1 = new G4PVPlacement(rotCuts,posBase1,volMap->at("base1")[j],phys_name,
                         logicFiber,false,count+200000);
             }
             else{
-                base1 = CreatePhysicalVolume(phys_name,count+200000,true,volMap->at("base1")[j],rotCuts,&posBase1,pFiber);
+                base1 = CreatePhysicalVolume(phys_name,count+200000,true,volMap->at("base1")[j],rotCuts,&posBase1,logicFiber);
             }
             (*fpDnaMoleculePositions)["Base1"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Base1"].back().push_back(posBase1.getX());
@@ -517,18 +440,17 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
             (*fpDnaMoleculePositions)["Base1"].back().push_back(posBase1.getZ());
             (*fpDnaMoleculePositions)["Base1"].back().push_back(count);
             (*fpDnaMoleculePositions)["Base1"].back().push_back(1);
+
             // Base 2
+            //--------------------------------------------------------------------------------------
             phys_name = "b_2_" + bp_index_string;
-            // G4PVPlacement* base2 = new G4PVPlacement(rotCuts,posBase2,volMap->at("base2")[j],phys_name,
-            //                      logicFiber,false,count+1200000);
-            // G4VPhysicalVolume* base2 = CreatePhysicalVolume(phys_name,count+1200000,false,volMap->at("base2")[j],rotCuts,&posBase2,pFiber);
             G4VPhysicalVolume* base2;
             if (fUseG4Volumes){
                 base2 = new G4PVPlacement(rotCuts,posBase2,volMap->at("base2")[j],phys_name,
                                      logicFiber,false,count+1200000);
             }
             else{
-                base2 = CreatePhysicalVolume(phys_name,count+1200000,true,volMap->at("base2")[j],rotCuts,&posBase2,pFiber);
+                base2 = CreatePhysicalVolume(phys_name,count+1200000,true,volMap->at("base2")[j],rotCuts,&posBase2,logicFiber);
             }
             (*fpDnaMoleculePositions)["Base2"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Base2"].back().push_back(posBase2.getX());
@@ -536,18 +458,17 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
             (*fpDnaMoleculePositions)["Base2"].back().push_back(posBase2.getZ());
             (*fpDnaMoleculePositions)["Base2"].back().push_back(count);
             (*fpDnaMoleculePositions)["Base2"].back().push_back(2);
+
             // Sugar 2
+            //--------------------------------------------------------------------------------------
             phys_name = "s_2_" + bp_index_string;
-            // G4PVPlacement* sTHF2 = new G4PVPlacement(rotCuts,posSugarTHF2,volMap->at("sugarTHF2")[j],
-            //     phys_name,logicFiber,false,count+1100000);
-            // G4VPhysicalVolume* sTHF2 = CreatePhysicalVolume(phys_name,count+1100000,false,volMap->at("sugarTHF2")[j],rotCuts,&posSugarTHF2,pFiber);
             G4VPhysicalVolume* sTHF2;
             if (fUseG4Volumes){
                 sTHF2 = new G4PVPlacement(rotCuts,posSugarTHF2,volMap->at("sugarTHF2")[j],
                     phys_name,logicFiber,false,count+1100000);
             }
             else{
-                sTHF2 = CreatePhysicalVolume(phys_name,count+1100000,true,volMap->at("sugarTHF2")[j],rotCuts,&posSugarTHF2,pFiber);
+                sTHF2 = CreatePhysicalVolume(phys_name,count+1100000,true,volMap->at("sugarTHF2")[j],rotCuts,&posSugarTHF2,logicFiber);
             }
             (*fpDnaMoleculePositions)["Desoxyribose"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF2.getX());
@@ -555,18 +476,17 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(posSugarTHF2.getZ());
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(count);
             (*fpDnaMoleculePositions)["Desoxyribose"].back().push_back(2);
+
             // Phosphate 2
+            //--------------------------------------------------------------------------------------
             phys_name = "p_2_" + bp_index_string;
-            // G4PVPlacement* sTMP2 = new G4PVPlacement(rotCuts,posSugarTMP2,volMap->at("sugarTMP2")[j],
-            //     phys_name,logicFiber,false,count+1000000);
-            // G4VPhysicalVolume* sTMP2 = CreatePhysicalVolume(phys_name,count+1000000,false,volMap->at("sugarTMP2")[j],rotCuts,&posSugarTMP2,pFiber);
             G4VPhysicalVolume* sTMP2;
             if (fUseG4Volumes){
                 sTMP2 = new G4PVPlacement(rotCuts,posSugarTMP2,volMap->at("sugarTMP2")[j],
                     phys_name,logicFiber,false,count+1000000);
             }
             else{
-                sTMP2 = CreatePhysicalVolume(phys_name,count+1000000,true,volMap->at("sugarTMP2")[j],rotCuts,&posSugarTMP2,pFiber);
+                sTMP2 = CreatePhysicalVolume(phys_name,count+1000000,true,volMap->at("sugarTMP2")[j],rotCuts,&posSugarTMP2,logicFiber);
             }
             (*fpDnaMoleculePositions)["Phosphate"].push_back(std::vector<double>());
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(posSugarTMP2.getX());
@@ -574,7 +494,10 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(posSugarTMP2.getZ());
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(count);
             (*fpDnaMoleculePositions)["Phosphate"].back().push_back(2);
+
+            //--------------------------------------------------------------------------------------
             // Place water volumes (containing residue placements) inside fiber volume
+            //--------------------------------------------------------------------------------------
             // G4PVPlacement* sTMP1W = new G4PVPlacement(0,posSugarTMP1,
             //     volMap->at("sugarTMP1Water")[j],"sugarTMP1Hydra",logicFiber,false,count);
             // G4PVPlacement* sTHF1W = new G4PVPlacement(0,posSugarTHF1,
@@ -588,8 +511,10 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
             // G4PVPlacement* sTMP2W = new G4PVPlacement(0,posSugarTMP2,
             //     volMap->at("sugarTMP2Water")[j],"sugarTMP2Hydra",logicFiber,false,count);
 
+            //--------------------------------------------------------------------------------------
             // Check overlaps if solids have been cut. No need if uncut, b/c will overlap
             // Throw and overlap error if settings request as such
+            //--------------------------------------------------------------------------------------
             if (checkForOverlaps) {
                 G4bool overlapDetected = false;
                 if(sTMP1->CheckOverlaps(overlapsResolution) && quitIfOverlap)
@@ -610,15 +535,7 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
                 // b2W->CheckOverlaps();
                 // sTHF2W->CheckOverlaps();
                 // sTMP2W->CheckOverlaps();
-
-
-                // 
-                // Simulation results can not be trusted when any overlap exists.
-                // If you still want the TOPAS session to continue
-                // (such as to use visualization to study the overlap),
-                // Set the parameter Ge/QuitIfOverlapDetected to False
             }
-
             ++count;
         }
 
@@ -632,16 +549,15 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
         posHistoneForNucleo += G4ThreeVector(0.,0.,i*zShift);
         // Apply shift such that fiber helix construction begins at at one end.
         posHistoneForNucleo += minusForFiber;
-        // Place
+
+        // Create volume
         G4String histName = "histone_" + std::to_string(i);
-        // G4VPhysicalVolume* pHistone = new G4PVPlacement(0,posHistoneForNucleo,logicHistone,histName,logicFiber,true,i);
-        // G4VPhysicalVolume* pHistone = CreatePhysicalVolume(histName,i,true,logicHistone,0,&posHistoneForNucleo,pFiber);
         G4VPhysicalVolume* pHistone;
         if (fUseG4Volumes){
             pHistone = new G4PVPlacement(0,posHistoneForNucleo,logicHistone,histName,logicFiber,true,i);
         }
         else{
-            pHistone = CreatePhysicalVolume(histName,i,true,logicHistone,0,&posHistoneForNucleo,pFiber);
+            pHistone = CreatePhysicalVolume(histName,i,true,logicHistone,0,&posHistoneForNucleo,logicFiber);
         }
         (*fpDnaMoleculePositions)["Histone"].push_back(std::vector<double>());
         (*fpDnaMoleculePositions)["Histone"].back().push_back(posHistoneForNucleo.getX());
@@ -650,10 +566,13 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
         (*fpDnaMoleculePositions)["Histone"].back().push_back(i);
         (*fpDnaMoleculePositions)["Histone"].back().push_back(0);
 
+        // Check for overlaps
         if (checkForOverlaps) {
             if(pHistone->CheckOverlaps(overlapsResolution) && quitIfOverlap)
                 ThrowOverlapError();
         }
+
+        // Report time to generate this nucleosome
         auto finish = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = finish-start;
         G4cout << "Time to nucleosome #" << i << " = " << elapsed.count() << " s" << G4endl;  
@@ -700,15 +619,6 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* TsFiberV2::CreateNucleosomeC
     //----------------------------------------------------------------------------------------------
     // Visibility attributes for nucleotide components (base, sugar, phosphate, shell)
     //----------------------------------------------------------------------------------------------
-    // G4VisAttributes red(G4Colour(1.0, 0.0, 0.0) );
-    // G4VisAttributes blue(G4Colour(0.0, 0.0, 1.0, 0.0) );
-    // G4VisAttributes green(G4Colour(0.0, 1.0, 0.0) );
-    // G4VisAttributes yellow(G4Colour(1.0, 1.0, 0.0) );
-    // red.SetForceSolid(true);
-    // // red.SetVisibility(false);
-    // green.SetForceSolid(true);
-    // yellow.SetForceSolid(true);
-
     G4VisAttributes visBase(G4Colour(0.92, 0.6, 0.6));    
     G4VisAttributes visSugar(G4Colour(0.43, 0.62, 0.92));    
     G4VisAttributes visPhosphate(G4Colour(0.71, 0.65, 0.84)); 
@@ -826,11 +736,6 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* TsFiberV2::CreateNucleosomeC
             // sugarTMP2Water = solidSugarTMPWater;
         }
 
-        // G4double sugarVolume = sugarTMP1->GetCubicVolume();
-        // G4cout << "**********************************************" << G4endl;
-        // G4cout << "Sugar volume = " << sugarVolume/m3 << G4endl;
-        // G4cout << "**********************************************" << G4endl;
-
         //------------------------------------------------------------------------------------------
         // Then: create logical volumes using the cut solids
         //------------------------------------------------------------------------------------------
@@ -849,18 +754,7 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* TsFiberV2::CreateNucleosomeC
         // G4LogicalVolume* logicSugarTHF2Water;
         // G4LogicalVolume* logicSugarTMP2Water;
 
-        // Creation of residues
-        // logicSugarTMP1 = new G4LogicalVolume(sugarTMP1,fDNAMaterial,"logic_sugar_TMP_1");
-        // logicSugarTHF1 = new G4LogicalVolume(sugarTHF1,fDNAMaterial,"logic_sugar_THF_1");
-        // logicBase1 = new G4LogicalVolume(base1,fDNAMaterial,"logic_base_1"); // PY
-        // logicBase2 = new G4LogicalVolume(base2,fDNAMaterial,"logic_base_2"); // PU
-        // logicSugarTHF2 = new G4LogicalVolume(sugarTHF2,fDNAMaterial,"logic_sugar_THF_2");
-        // logicSugarTMP2 = new G4LogicalVolume(sugarTMP2,fDNAMaterial,"logic_sugar_TMP_2");
-        // G4cout << "fWaterName = " << fWaterName << G4endl;
-        // G4cout << "fWater = " << fWater << G4endl;
-        // G4cout << "fDNAMaterialName = " << fDNAMaterialName << G4endl;
-        // G4cout << "fDNAMaterial = " << fDNAMaterial << G4endl;
-
+        // Handle G4 vs Ts approach to generating logical volumes
         if (fUseG4Volumes) {
             logicSugarTMP1 = new G4LogicalVolume(sugarTMP1,fDNAMaterial,"logic_sugar_TMP_1");
             logicSugarTHF1 = new G4LogicalVolume(sugarTHF1,fDNAMaterial,"logic_sugar_THF_1");
@@ -870,6 +764,14 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* TsFiberV2::CreateNucleosomeC
             logicSugarTMP2 = new G4LogicalVolume(sugarTMP2,fDNAMaterial,"logic_sugar_TMP_2");
         }
         else {
+            // Logical volumes for each nucleotide have the same name
+            logicSugarTMP1 = CreateLogicalVolume("logic_sugar_TMP_1",fDNAMaterialName,sugarTMP1);
+            logicSugarTHF1 = CreateLogicalVolume("logic_sugar_THF_1",fDNAMaterialName,sugarTHF1);
+            logicBase1 = CreateLogicalVolume("logic_base_1",fDNAMaterialName,base1);
+            logicBase2 = CreateLogicalVolume("logic_base_2",fDNAMaterialName,base2);
+            logicSugarTHF2 = CreateLogicalVolume("logic_sugar_THF_2",fDNAMaterialName,sugarTHF2);
+            logicSugarTMP2 = CreateLogicalVolume("logic_sugar_TMP_2",fDNAMaterialName,sugarTMP2);
+
             // Logical volumes for each nucleotide have different names
             // G4String testname = "logic_sugar_TMP_1"+std::to_string(j);
             // logicSugarTMP1 = CreateLogicalVolume(testname,fDNAMaterialName,sugarTMP1);
@@ -883,14 +785,6 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* TsFiberV2::CreateNucleosomeC
             // logicSugarTHF2 = CreateLogicalVolume(testname,fDNAMaterialName,sugarTHF2);
             // testname = "logic_sugar_TMP_2"+std::to_string(j);
             // logicSugarTMP2 = CreateLogicalVolume(testname,fDNAMaterialName,sugarTMP2);
-
-            // Logical volumes for each nucleotide have the same name
-            logicSugarTMP1 = CreateLogicalVolume("logic_sugar_TMP_1",fDNAMaterialName,sugarTMP1);
-            logicSugarTHF1 = CreateLogicalVolume("logic_sugar_THF_1",fDNAMaterialName,sugarTHF1);
-            logicBase1 = CreateLogicalVolume("logic_base_1",fDNAMaterialName,base1);
-            logicBase2 = CreateLogicalVolume("logic_base_2",fDNAMaterialName,base2);
-            logicSugarTHF2 = CreateLogicalVolume("logic_sugar_THF_2",fDNAMaterialName,sugarTHF2);
-            logicSugarTMP2 = CreateLogicalVolume("logic_sugar_TMP_2",fDNAMaterialName,sugarTMP2);
         }  
 
         // Creation of hydration shells
@@ -967,12 +861,11 @@ G4VSolid* TsFiberV2::CreateCutSolid(G4Orb *solidOrbRef,
     // Define radius of the reference solid we are focusing on
     //----------------------------------------------------------------------------------------------
     G4double radiusRef (0);
-    // if(volName=="base") radiusRef = fBaseRadiusWater;
-    // else if(volName=="sugarTHF") radiusRef = fSugarTHFRadiusWater;
-    // else if(volName=="sugarTMP") radiusRef = fSugarTMPRadiusWater;
+
     if(volName=="base") radiusRef = fBaseRadius;
     else if(volName=="sugarTHF") radiusRef = fSugarTHFRadius;
     else if(volName=="sugarTMP") radiusRef = fSugarTMPRadius;
+
     // Hydration shell is handled if no volName provided
     else radiusRef = solidOrbRef->GetRadius();
 
@@ -994,11 +887,6 @@ G4VSolid* TsFiberV2::CreateCutSolid(G4Orb *solidOrbRef,
         //------------------------------------------------------------------------------------------
         if(distance == 0 && !isOurVol)
         {
-            // G4cout << "The matching index is: " << count << G4endl;
-            // target volume is the reference volume
-            // G4cout << "Distance is 0 at index " << count << G4endl;
-            // G4cout << "Radius = " << radiusTar << G4endl;
-            // G4cout << "Position = " << posTar << G4endl;
             isOurVol = true;
         }
         //------------------------------------------------------------------------------------------
@@ -1057,8 +945,6 @@ G4VSolid* TsFiberV2::CreateCutSolid(G4Orb *solidOrbRef,
             //--------------------------------------------------------------------------------------
             if(!isCutted) solidCut = new G4SubtractionSolid("solidCut", solidOrbRef, sliceBox, rotMat, posSlice);
             else solidCut = new G4SubtractionSolid("solidCut", solidCut, sliceBox, rotMat, posSlice);
-            // if(!isCutted) solidCut = new G4UnionSolid("solidCut", solidOrbRef, sliceBox, rotMat, posSlice);
-            // else solidCut = new G4UnionSolid("solidCut", solidCut, sliceBox, rotMat, posSlice);
 
             isCutted = true;
         }
@@ -1069,82 +955,20 @@ G4VSolid* TsFiberV2::CreateCutSolid(G4Orb *solidOrbRef,
     else return solidOrbRef;
 }
 
+
 //--------------------------------------------------------------------------------------------------
-// Helper function used by buildLogicFiber() in verbose mode (i.e. if want to output the mean volume
-// of cut residue and water volumes).
+// Helper function used if a geometrical overlap is detected. Return the standard Topas message
+// about geometry overlaps and exit gracefully.
 //--------------------------------------------------------------------------------------------------
-void TsFiberV2::CalculateMeanVol(std::map<G4String, std::vector<G4LogicalVolume*> >* logicSolidsMap)
+void TsFiberV2::ThrowOverlapError() 
 {
-    G4double sugarTMP1Vol = 0;
-    G4double sugarTHF1Vol = 0;
-    G4double base1Vol = 0;
-    G4double base2Vol = 0;
-    G4double sugarTHF2Vol = 0;
-    G4double sugarTMP2Vol = 0;
-
-    G4double sugarTMP1WaterVol = 0;
-    G4double sugarTHF1WaterVol = 0;
-
-    G4double base1WaterVol = 0;
-    G4double base2WaterVol = 0;
-    G4double sugarTHF2WaterVol = 0;
-    G4double sugarTMP2WaterVol = 0;
-
-    // iterate on each bp
-    for(int j=0;j<fBpNum;++j)
-    {
-        if(j==0) G4cout<<"Volume calculations\nThe fFactor value is taken into account already. We assume fFactor=1e+9."<<G4endl;
-        // assert(fFactor==1e+9);
-        sugarTMP1Vol += logicSolidsMap->at("sugarTMP1")[j]->GetSolid()->GetCubicVolume();
-        sugarTHF1Vol += logicSolidsMap->at("sugarTHF1")[j]->GetSolid()->GetCubicVolume();
-        base1Vol += logicSolidsMap->at("base1")[j]->GetSolid()->GetCubicVolume();
-        base2Vol += logicSolidsMap->at("base2")[j]->GetSolid()->GetCubicVolume();
-        sugarTHF2Vol += logicSolidsMap->at("sugarTHF2")[j]->GetSolid()->GetCubicVolume();
-        sugarTMP2Vol += logicSolidsMap->at("sugarTMP2")[j]->GetSolid()->GetCubicVolume();
-
-        // sugarTMP1WaterVol += logicSolidsMap->at("sugarTMPWater1")[j]->GetSolid()->GetCubicVolume();
-        // sugarTHF1WaterVol += logicSolidsMap->at("sugarTHFWater1")[j]->GetSolid()->GetCubicVolume();
-        // base1WaterVol += logicSolidsMap->at("baseWater1")[j]->GetSolid()->GetCubicVolume();
-        // base2WaterVol += logicSolidsMap->at("baseWater2")[j]->GetSolid()->GetCubicVolume();
-        // sugarTHF2WaterVol += logicSolidsMap->at("sugarTHFWater2")[j]->GetSolid()->GetCubicVolume();
-        // sugarTMP2WaterVol += logicSolidsMap->at("sugarTMPWater2")[j]->GetSolid()->GetCubicVolume();
-    }
-
-    sugarTMP1Vol = sugarTMP1Vol/(fBpNum);
-    sugarTHF1Vol = sugarTHF1Vol/(fBpNum);
-    base1Vol = base1Vol/(fBpNum);
-    base2Vol = base2Vol/(fBpNum);
-    sugarTHF2Vol = sugarTHF2Vol/(fBpNum);
-    sugarTMP2Vol = sugarTMP2Vol/(fBpNum);
-
-    // sugarTMP1Vol = sugarTMP1Vol/(fBpNum*pow(fFactor,3) );
-    // sugarTHF1Vol = sugarTHF1Vol/(fBpNum*pow(fFactor,3) );
-    // base1Vol = base1Vol/(fBpNum*pow(fFactor,3));
-    // base2Vol = base2Vol/(fBpNum*pow(fFactor,3));
-    // sugarTHF2Vol = sugarTHF2Vol/(fBpNum*pow(fFactor,3));
-    // sugarTMP2Vol = sugarTMP2Vol/(fBpNum*pow(fFactor,3));
-
-    // sugarTMP1WaterVol = sugarTMP1WaterVol/(fBpNum*pow(fFactor,3) ) - sugarTMP1Vol;
-    // sugarTHF1WaterVol = sugarTHF1WaterVol/(fBpNum*pow(fFactor,3) ) - sugarTHF1Vol;
-    // base1WaterVol = base1WaterVol/(fBpNum*pow(fFactor,3)) - base1Vol;
-    // base2WaterVol = base2WaterVol/(fBpNum*pow(fFactor,3)) - base2Vol;
-    // sugarTHF2WaterVol = sugarTHF2WaterVol/(fBpNum*pow(fFactor,3)) - sugarTHF2Vol;
-    // sugarTMP2WaterVol = sugarTMP2WaterVol/(fBpNum*pow(fFactor,3)) - sugarTMP2Vol;
-
-    G4cout<<"\nsugarTMP1Vol="<<sugarTMP1Vol/m3*1e+27<<" nm3"<<G4endl;
-    G4cout<<"\nsugarTHF1Vol="<<sugarTHF1Vol/m3*1e+27<<" nm3"<<G4endl;
-    G4cout<<"base1Vol="<<base1Vol/m3*1e+27<<" nm3"<<G4endl;
-    G4cout<<"base2Vol="<<base2Vol/m3*1e+27<<" nm3"<<G4endl;
-    G4cout<<"sugarTHF2Vol="<<sugarTHF2Vol/m3*1e+27<<" nm3\n"<<G4endl;
-    G4cout<<"sugarTMP2Vol="<<sugarTMP2Vol/m3*1e+27<<" nm3\n"<<G4endl;
-
-    // G4cout<<"\nsugarTMP1WaterVol="<<sugarTMP1WaterVol/m3*1e+27<<" nm3"<<G4endl;
-    // G4cout<<"\nsugarTHF1WaterVol="<<sugarTHF1WaterVol/m3*1e+27<<" nm3"<<G4endl;
-    // G4cout<<"base1WaterVol="<<base1WaterVol/m3*1e+27<<" nm3"<<G4endl;
-    // G4cout<<"base2WaterVol="<<base2WaterVol/m3*1e+27<<" nm3"<<G4endl;
-    // G4cout<<"sugarTHF2WaterVol="<<sugarTHF2WaterVol/m3*1e+27<<" nm3\n"<<G4endl;
-    // G4cout<<"sugarTMP2WaterVol="<<sugarTMP2WaterVol/m3*1e+27<<" nm3\n"<<G4endl;
+    G4cout << "Topas is quitting due to the above geometry overlap problem." << G4endl;
+    G4cout << "If you still want the TOPAS session to continue" << G4endl;
+    G4cout << "(such as to use visualization to study the overlap)," << G4endl;
+    G4cout << "Set the parameter Ge/QuitIfOverlapDetected to False" << G4endl;
+    exit(0);
 }
+
 
 
 

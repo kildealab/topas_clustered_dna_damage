@@ -282,7 +282,7 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 
 			if (fTotalSSB > 0 || fTotalBD > 0 || fTotalDSB > 0 || fTotalComplexDSB > 0 || fTotalNonDSBCluster > 0) {
 				// If want to output results to command line
-				PrintDNADamageToConsole();
+				// PrintDNADamageToConsole();
 				fNtuple->Fill();
 			}
 		}
