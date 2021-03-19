@@ -147,6 +147,8 @@ G4VPhysicalVolume* TsFiberV2::Construct()
                      fOverlapsResolution,
                      fQuitIfOverlap);
 
+    // CreatePhysicalVolume("Fiber",lFiber,fEnvelopePhys,kZAxis,2,136*nm);
+
     // Create physical volume for the fibre & place in the world
     if (fUseG4Volumes){
         G4ThreeVector emptyPlacement = G4ThreeVector(0.,0.,0.);

@@ -26,8 +26,17 @@ public:
     G4bool ProcessHits(G4Step*,G4TouchableHistory*);
     
     void UserHookForEndOfEvent();
+    void UserHookForEndOfRun();
     
 private:
+    void RecordDamage(); 
+    void AbsorbResultsFromWorkerScorer(TsVScorer*);
+    void AbsorbMapFromWorkerScorer(std::map<G4int,std::map<G4int,std::map<G4int, G4double>>>&,
+        std::map<G4int,std::map<G4int,std::map<G4int, G4double>>>&);
+    void ResetMemberVariables();
+    void OutputComplexDSBToFile();
+    void OutputNonDSBClusterToFile();
+
     void ComputeStrandBreaks(G4int*, G4int);
 
     G4int CalculateIntegerMagnitude(G4int);
@@ -63,6 +72,17 @@ private:
     G4double fThresEdepForBD;
     G4int fThresDistForDSB;
     G4int fThresDistForCluster;
+
+    G4bool fRecordDamagePerEvent;
+    G4int fThreadID;
+    G4int fNbOfScoredEvents;
+    G4double fTotalEdep;
+    G4String fDelimiter;
+
+    // G4int fThreadCounter;
+    // std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > worker1Map;
+    // std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > worker2Map;
+    // std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > worker3Map;
 
     // G4int fNumEdeps1;
     // G4double fTotalEdep1;
@@ -123,12 +143,15 @@ private:
 
     // Clustered damage handling
     std::vector<std::array<G4int,2>> fIndicesSimple; // first # is bp index, second # is 0 or 1 to represent SSB or BD
+    
+    G4String fFileComplexDSB;
     std::vector<G4int> fComplexDSBSizes; // Vector of lengths of complex DSB (in # of bp)
     std::vector<G4int> fComplexDSBNumSSB;
     std::vector<G4int> fComplexDSBNumBD;
     std::vector<G4int> fComplexDSBNumDSB;
     std::vector<G4int> fComplexDSBNumDamage;
 
+    G4String fFileNonDSBCluster;
     std::vector<G4int> fNonDSBClusterSizes; // Vector of lengths of complex DSB (in # of bp)
     std::vector<G4int> fNonDSBClusterNumSSB;
     std::vector<G4int> fNonDSBClusterNumBD;
