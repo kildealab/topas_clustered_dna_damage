@@ -152,6 +152,8 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 
 	fNumberOfThreads = fPm->GetIntegerParameter("Ts/NumberOfThreads");
 
+	fComponentVolume = CalculateComponentVolume();
+
 	if (fUseDoseThreshold) {
 		fEnergyThreshold = ConvertDoseThresholdToEnergy();
 	}
@@ -204,6 +206,35 @@ ScoreClusteredDNADamage::~ScoreClusteredDNADamage() {
 
 
 //--------------------------------------------------------------------------------------------------
+// Calculate cubic volume of component attached to the scorer. Use parameter values to perform 
+// calculation according to the shape of the volume
+//--------------------------------------------------------------------------------------------------
+G4double ScoreClusteredDNADamage::CalculateComponentVolume() {
+	G4double componentVolume;
+
+	if (fComponentShape == "box") {
+		componentVolume = fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
+	}
+	else if (fComponentShape == "cylinder") {
+		componentVolume = CLHEP::pi*pow(fComponentDimensions[0],2)*(2*fComponentDimensions[1]);
+	}
+	else if (fComponentShape == "ellipsoid") {
+		componentVolume = 4.0/3.0*CLHEP::pi*fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
+	}
+	else if (fComponentShape == "sphere") {
+		componentVolume = 4.0/3.0*CLHEP::pi*pow(fComponentDimensions[0],3);
+	}
+	// Throw error if invalid shape is specified
+	else {
+		G4cerr << "Topas is exiting due to a serious error in the scoring parameter ComponentShape." << G4endl;
+		G4cerr << "Please use one of these shapes that matches your scoring component: box, cylinder, ellipsoid, sphere" << G4endl;
+		fPm->AbortSession(1);
+	}
+
+	return componentVolume;
+}
+
+//--------------------------------------------------------------------------------------------------
 // Handle conversion of dose threshold to energy threshold
 // Need to make sure units are correct
 //--------------------------------------------------------------------------------------------------
@@ -214,27 +245,6 @@ G4double ScoreClusteredDNADamage::ConvertDoseThresholdToEnergy() {
 	if (fDoseThreshold < 0) {
 		G4cerr << "Topas is exiting due to a serious error in the scoring parameter DoseThreshold." << G4endl;
 		G4cerr << "No valid dose threshold has been provided." << G4endl;
-		fPm->AbortSession(1);
-	}
-
-	// Calculate volume according to the shape of the volume
-	G4bool throwDimensionError = false;
-	if (fComponentShape == "box") {
-		fComponentVolume = fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
-	}
-	else if (fComponentShape == "cylinder") {
-		fComponentVolume = CLHEP::pi*pow(fComponentDimensions[0],2)*(2*fComponentDimensions[1]);
-	}
-	else if (fComponentShape == "ellipsoid") {
-		fComponentVolume = 4.0/3.0*CLHEP::pi*fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
-	}
-	else if (fComponentShape == "sphere") {
-		fComponentVolume = 4.0/3.0*CLHEP::pi*pow(fComponentDimensions[0],3);
-	}
-	// Throw error if invalid shape is specified
-	else {
-		G4cerr << "Topas is exiting due to a serious error in the scoring parameter ComponentShape." << G4endl;
-		G4cerr << "Please use one of these shapes that matches your scoring component: box, cylinder, ellipsoid, sphere" << G4endl;
 		fPm->AbortSession(1);
 	}
 

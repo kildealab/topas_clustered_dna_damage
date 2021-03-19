@@ -37,6 +37,7 @@ private:
     void OutputComplexDSBToFile();
     void OutputNonDSBClusterToFile();
     void OutputRunSummaryToFile();
+    G4double CalculateComponentVolume();
     G4double ConvertDoseThresholdToEnergy();
 
     void ComputeStrandBreaks(G4int*, G4int);
