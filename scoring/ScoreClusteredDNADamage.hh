@@ -36,16 +36,15 @@ private:
     void ResetMemberVariables();
     void OutputComplexDSBToFile();
     void OutputNonDSBClusterToFile();
+    void OutputRunSummaryToFile();
+    G4double ConvertDoseThresholdToEnergy();
 
     void ComputeStrandBreaks(G4int*, G4int);
 
     G4int CalculateIntegerMagnitude(G4int);
 
     std::vector<G4int> RecordSimpleDamage(G4double,std::map<G4int,std::map<G4int, G4double>>);
-    // std::vector<std::array<G4int,2>> RecordDSB(G4int,std::vector<G4int>,std::vector<G4int>);
-    // std::vector<std::array<G4int,2>> RecordDSB();
     std::vector<G4int> RecordDSB1D();
-    // std::vector<std::array<G4int,2>> RecordComplexDSB();
     std::vector<std::vector<G4int>> RecordComplexDSB();
     void RecordClusteredDamage();
     void AddDamageToCluster(DamageCluster&, G4int, G4int, G4bool);
@@ -75,9 +74,22 @@ private:
 
     G4bool fRecordDamagePerEvent;
     G4int fThreadID;
-    G4int fNbOfScoredEvents;
+    G4int fNumEvents;
+    // G4int fNumEventsScored;
     G4double fTotalEdep;
+    G4double fComponentVolume;
     G4String fDelimiter;
+    G4String fFileRunSummary;
+
+    G4bool fUseDoseThreshold;
+    G4double fDoseThreshold;
+    // G4double fDoseCutWorker;
+    G4double fEnergyThreshold;
+    // G4double fEnergyCutWorker;
+    G4String fComponentShape;
+    G4double* fComponentDimensions;
+    G4int fNumberOfThreads;
+
 
     // G4int fThreadCounter;
     // std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > worker1Map;

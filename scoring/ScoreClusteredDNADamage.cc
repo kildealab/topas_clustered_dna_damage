@@ -18,6 +18,7 @@
 #include <algorithm>
 
 #include <map>
+#include "G4RunManager.hh"
 
 //--------------------------------------------------------------------------------------------------
 // Struct used to hold parameters of interest for a given cluter of DNA damage.
@@ -37,12 +38,7 @@ struct DamageCluster {
 
 
 //--------------------------------------------------------------------------------------------------
-// Constructor Must define each data column & type to be recorded. In our case, record data across
-// four columns:
-// (1) Primary particle number (i.e. event number)
-// (2) DNA fibre number (only relevant if multiple fibres used)
-// (3) Total number of SSBs (SBs contributing to a DSB are not counted)
-// (4) Total number of DSBs
+// Constructor Must define each data column & type to be recorded.
 //--------------------------------------------------------------------------------------------------
 ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMaterialManager* mM, TsGeometryManager* gM, TsScoringManager* scM, TsExtensionManager* eM,
 											   G4String scorerName, G4String quantity, G4String outFileName, G4bool isSubScorer)
@@ -63,8 +59,10 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fTotalComplexDSB = 0;
 	fTotalNonDSBCluster = 0;
 
-	fNbOfScoredEvents = 0;
+	fNumEvents = 0;
+	// fNumEventsScored = 0;
 	fTotalEdep = 0.;
+	fComponentVolume = 0.;
 
 	fNbOfAlgo = 1; // Used with variance reduction
 	
@@ -86,7 +84,12 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	else 
 		fRecordDamagePerEvent = false;
 
-	// Files for outputting clustered damage details
+	// Files for outputting run information & clustered damage details
+	if ( fPm->ParameterExists(GetFullParmName("FileRunSummary")))
+		fFileRunSummary = fPm->GetStringParameter(GetFullParmName("FileRunSummary"));
+	else
+		fFileRunSummary = "output_run_summary.csv";
+
 	if ( fPm->ParameterExists(GetFullParmName("FileComplexDSB")))
 		fFileComplexDSB = fPm->GetStringParameter(GetFullParmName("FileComplexDSB"));
 	else
@@ -101,6 +104,12 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fDelimiter = ",";
 
 	std::ofstream outFile;
+	outFile.open(fFileRunSummary, std::ofstream::trunc);
+	outFile << "# events" << fDelimiter;
+	outFile << "Dose (Gray)" << fDelimiter;
+	outFile << "Energy (eV)" << G4endl;
+	outFile.close();
+
 	outFile.open(fFileComplexDSB, std::ofstream::trunc);
 	outFile << "Size (bp)" << fDelimiter;
 	outFile << "Total # of damages" << fDelimiter;
@@ -121,6 +130,34 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	if ( fPm->ParameterExists(GetFullParmName("DNAMaterialName")))
 		DNAMaterialName = fPm->GetStringParameter(GetFullParmName("DNAMaterialName"));
 	fDNAMaterial = GetMaterial(DNAMaterialName);
+
+	// Parameters to handle stopping simulation & scoring when threshold is met
+	if (fPm->ParameterExists(GetFullParmName("UseDoseThreshold")))
+		fUseDoseThreshold = fPm->GetBooleanParameter(GetFullParmName("UseDoseThreshold"));
+	else
+		fUseDoseThreshold = false;
+
+	if (fPm->ParameterExists(GetFullParmName("DoseThreshold")))
+		fDoseThreshold = fPm->GetDoubleParameter(GetFullParmName("DoseThreshold"), "Dose");
+	else
+		fDoseThreshold = -1.;
+
+	if (fPm->ParameterExists(GetFullParmName("ComponentShape")))
+		fComponentShape = fPm->GetStringParameter(GetFullParmName("ComponentShape"));
+	else 
+		fComponentShape = "";
+
+	if (fPm->ParameterExists(GetFullParmName("ComponentDimensions")))
+		fComponentDimensions = fPm->GetDoubleVector(GetFullParmName("ComponentDimensions"), "Length");
+
+	fNumberOfThreads = fPm->GetIntegerParameter("Ts/NumberOfThreads");
+
+	if (fUseDoseThreshold) {
+		fEnergyThreshold = ConvertDoseThresholdToEnergy();
+	}
+	else {
+		fEnergyThreshold = -1.;
+	}
 
 	// Determine order of magnitude of number of base pairs. Set fParser parameters accordingly
 	// for use in ProcessHits()
@@ -151,16 +188,6 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fNtuple->RegisterColumnI(&fTotalComplexDSB, "Complex DSBs"); // Number of Complex DSB caused by this primary particle
 	fNtuple->RegisterColumnI(&fTotalNonDSBCluster, "Non-DSB clusters"); // Number of Non-DSB Clusters caused by this primary particle
 	
-	// G4cout << "**************************************************" << G4endl;
-	// G4String compName = fPm->GetStringParameter(GetFullParmName("Component"));
-	// gM->GetPhysicalVolume(compName);
-	// fComponent->GetName();
-	// G4String compName = GetComponent()->GetName();
-	// GetComponent();
-	// G4double myVol = GetComponent()->GetPhysicalVolume(compName)->GetLogicalVolume()->GetSolid()->GetCubicVolume();
-	// G4cout << "myVol =" << myVol << G4endl;
-	// G4cout << "**************************************************" << G4endl;
-
 	// Unsure what this does
 	// From the docs: disable automatic creation & filling of output, leaving this work entirely to
 	// your scorer.
@@ -173,6 +200,61 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 // Destructor
 //--------------------------------------------------------------------------------------------------
 ScoreClusteredDNADamage::~ScoreClusteredDNADamage() {
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// Handle conversion of dose threshold to energy threshold
+// Need to make sure units are correct
+//--------------------------------------------------------------------------------------------------
+G4double ScoreClusteredDNADamage::ConvertDoseThresholdToEnergy() {
+	G4double energyThreshold;
+
+	// Throw error if no dose threshold provided
+	if (fDoseThreshold < 0) {
+		G4cerr << "Topas is exiting due to a serious error in the scoring parameter DoseThreshold." << G4endl;
+		G4cerr << "No valid dose threshold has been provided." << G4endl;
+		fPm->AbortSession(1);
+	}
+
+	// Calculate volume according to the shape of the volume
+	G4bool throwDimensionError = false;
+	if (fComponentShape == "box") {
+		fComponentVolume = fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
+	}
+	else if (fComponentShape == "cylinder") {
+		fComponentVolume = CLHEP::pi*pow(fComponentDimensions[0],2)*(2*fComponentDimensions[1]);
+	}
+	else if (fComponentShape == "ellipsoid") {
+		fComponentVolume = 4.0/3.0*CLHEP::pi*fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
+	}
+	else if (fComponentShape == "sphere") {
+		fComponentVolume = 4.0/3.0*CLHEP::pi*pow(fComponentDimensions[0],3);
+	}
+	// Throw error if invalid shape is specified
+	else {
+		G4cerr << "Topas is exiting due to a serious error in the scoring parameter ComponentShape." << G4endl;
+		G4cerr << "Please use one of these shapes that matches your scoring component: box, cylinder, ellipsoid, sphere" << G4endl;
+		fPm->AbortSession(1);
+	}
+
+	// Convert dose to energy thershold (Treating whole volume as same material)
+	energyThreshold = GetMaterial("G4_WATER")->GetDensity() * fComponentVolume * fDoseThreshold;
+	// energyThreshold = fDNAMaterial->GetDensity() * volume * fDoseThreshold;
+
+	// Divide by number of threads
+	if (fNumberOfThreads > 1){
+		energyThreshold /= fNumberOfThreads;
+	}
+
+	// G4cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << G4endl;
+	// G4cout << "density = " << fDNAMaterial->GetDensity()/(kg/m3) << G4endl;
+	// G4cout << "volume = " << volume/m3 << G4endl;
+	// G4cout << "fDoseThreshold = " << fDoseThreshold/gray << G4endl;
+	// G4cout << "energyThreshold = " << energyThreshold/eV << G4endl;
+	// G4cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << G4endl;
+
+	return energyThreshold;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -299,12 +381,18 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 	fEventID = GetEventID();
 	fThreadID = G4Threading::G4GetThreadId();
 
+	fNumEvents++;
+
 	if (fRecordDamagePerEvent) {
-		fNbOfScoredEvents++; // Maybe move this to RecordDamage
 		RecordDamage();
 		OutputComplexDSBToFile();
 		OutputNonDSBClusterToFile();
 		ResetMemberVariables();
+	}
+
+	if (fUseDoseThreshold && fTotalEdep > fEnergyThreshold) {
+		std::cout << "Aborting worker #" << G4Threading::G4GetThreadId() << std::endl;
+		G4RunManager::GetRunManager()->AbortRun(true);
 	}
 }
 
@@ -315,29 +403,49 @@ void ScoreClusteredDNADamage::UserHookForEndOfRun() {
 	fEventID = GetEventID();
 	fThreadID = G4Threading::G4GetThreadId();
 
+	OutputRunSummaryToFile();
+	G4cout << "Run summary has been written to: " << fFileRunSummary << G4endl;
+
 	if (!fRecordDamagePerEvent) {
 		RecordDamage();
 		OutputComplexDSBToFile();
 		OutputNonDSBClusterToFile();
 	}
-	// OutputComplexDSBToFile();
-	// OutputNonDSBClusterToFile();
+
 	G4cout << "Complex DSB details have been written to: " << fFileComplexDSB << G4endl;
 	G4cout << "Non-DSB cluster details have been written to: " << fFileNonDSBCluster << G4endl;
 }
+
+
+//--------------------------------------------------------------------------------------------------
+// This method outputs the details of the run to a file. First line contains the column header
+// information. The second line contains the data.
+//--------------------------------------------------------------------------------------------------
+void ScoreClusteredDNADamage::OutputRunSummaryToFile() {
+	std::ofstream outFile(fFileRunSummary, std::ios_base::app);
+
+	// Catch file I/O error
+	if (!outFile.good()) {
+		G4cerr << "Topas is exiting due to a serious error in file output." << G4endl;
+		G4cerr << "Output file: " << fFileRunSummary << " cannot be opened" << G4endl;
+		fPm->AbortSession(1);
+	}
+
+	G4double doseDep = fTotalEdep / GetMaterial("G4_WATER")->GetDensity() / fComponentVolume;
+
+	outFile << fNumEvents << fDelimiter;
+	outFile << doseDep/gray << fDelimiter;
+	outFile << fTotalEdep/eV << G4endl;
+
+	outFile.close();
+}
+
 
 //--------------------------------------------------------------------------------------------------
 // This method outputs the details of scored Complex DSBs to a file. First line contains the column
 // header information. Subsequent lines contain the data (1 cluster per line).
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::OutputComplexDSBToFile() {
-	// std::ios_base::openmode fWriteMode; 
-	// if (fRecordDamagePerEvent) {
-	// 	fWriteMode = std::ios_base::app;
-	// }
-	// else {
-	// 	fWriteMode = std::ofstream::trunc;
-	// }
 	std::ofstream outFile(fFileComplexDSB, std::ios_base::app);
 
 	// Catch file I/O error
@@ -347,6 +455,7 @@ void ScoreClusteredDNADamage::OutputComplexDSBToFile() {
 		fPm->AbortSession(1);
 	}
 
+	// Record data
 	for (G4int i = 0; i < fTotalComplexDSB; i++) {
 		outFile << fComplexDSBSizes[i] << fDelimiter;
 		outFile << fComplexDSBNumDamage[i] << fDelimiter;
@@ -363,21 +472,16 @@ void ScoreClusteredDNADamage::OutputComplexDSBToFile() {
 // column header information. Subsequent lines contain the data (1 cluster per line).
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::OutputNonDSBClusterToFile() {
-	// std::ios_base::openmode fWriteMode; 
-	// if (fRecordDamagePerEvent) {
-	// 	fWriteMode = std::ios_base::app;
-	// }
-	// else {
-	// 	fWriteMode = std::ofstream::trunc;
-	// }
 	std::ofstream outFile(fFileNonDSBCluster, std::ios_base::app);
-	// std::ofstream outFile(fFileNonDSBCluster, std::ofstream::trunc); // append
+
+	// Catch file I/O error
 	if (!outFile.good()) {
 		G4cerr << "Topas is exiting due to a serious error in file output." << G4endl;
 		G4cerr << "Output file: " << fFileNonDSBCluster << " cannot be opened" << G4endl;
 		fPm->AbortSession(1);
 	}
 
+	// Record data
 	for (G4int i = 0; i < fTotalNonDSBCluster; i++) {
 		outFile << fNonDSBClusterSizes[i] << fDelimiter;
 		outFile << fNonDSBClusterNumDamage[i] << fDelimiter;
@@ -397,14 +501,14 @@ void ScoreClusteredDNADamage::AbsorbResultsFromWorkerScorer(TsVScorer* workerSco
 {
 	TsVNtupleScorer::AbsorbResultsFromWorkerScorer(workerScorer);
     
+	ScoreClusteredDNADamage* myWorkerScorer = dynamic_cast<ScoreClusteredDNADamage*>(workerScorer);
+
+	// Absorb various worker thread data
+	fTotalEdep += myWorkerScorer->fTotalEdep;
+	fNumEvents += myWorkerScorer->fNumEvents;
+
+    // If recording damage over the whole run, absorb the energy deposition maps from this worker
     if (!fRecordDamagePerEvent) {
-	    ScoreClusteredDNADamage* myWorkerScorer = dynamic_cast<ScoreClusteredDNADamage*>(workerScorer);
-
-	    // Absorb number of events that included energy depositions
-	    fNbOfScoredEvents += myWorkerScorer->fNbOfScoredEvents;
-	    myWorkerScorer->fNbOfScoredEvents = 0;
-
-	    // Absorb energy deposition maps
 	    AbsorbMapFromWorkerScorer(fGenVEdepStrand1Backbone,myWorkerScorer->fGenVEdepStrand1Backbone);
 	    AbsorbMapFromWorkerScorer(fGenVEdepStrand2Backbone,myWorkerScorer->fGenVEdepStrand2Backbone);
 	    AbsorbMapFromWorkerScorer(fGenVEdepStrand1Base,myWorkerScorer->fGenVEdepStrand1Base);
@@ -432,15 +536,6 @@ void ScoreClusteredDNADamage::AbsorbMapFromWorkerScorer(
 		itWorker++; // use erase instead to free up memory
 		// itWorker = workerMap[0][0].erase(itWorker);
 	}
-
-	// G4cout << "=====================================================================" << G4endl;
-	// int colwidth = 15;
-	// for (G4int i = 0; i < 1200; i++) {
-	// 	if (workerMap[0][0][i] > 0 || masterMap[0][0][i] > 0 ) {
-	// 		G4cout << std::left << "i = " << std::setw(colwidth) << i << " | " << std::setw(colwidth) << workerMap[0][0][i]/eV << std::setw(colwidth) << masterMap[0][0][i]/eV << G4endl;
-	// 	}
-	// }
- //    G4cout << "=====================================================================" << G4endl;
 }
 
 
@@ -513,35 +608,7 @@ void ScoreClusteredDNADamage::RecordDamage() {
 			// }
 			// G4cout << "#################################################################################################################################" << G4endl;
 		// }
-
-		// Clear member variables for next fibre
-		// fVEdepStrand1Backbone.erase(fVEdepStrand1Backbone.begin(), fVEdepStrand1Backbone.end());
-		// fVEdepStrand2Backbone.erase(fVEdepStrand2Backbone.begin(), fVEdepStrand2Backbone.end());
-		// fVEdepStrand1Base.erase(fVEdepStrand1Base.begin(), fVEdepStrand1Base.end());
-		// fVEdepStrand2Base.erase(fVEdepStrand2Base.begin(), fVEdepStrand2Base.end());
-
-		// fTotalSSB = 0;
-		// fTotalBD = 0;
-		// fTotalDSB = 0;
-		// fTotalComplexDSB = 0;
-		// fTotalNonDSBCluster = 0;
-
-		// fComplexDSBSizes.clear();
-		// fComplexDSBNumSSB.clear();
-		// fComplexDSBNumBD.clear();
-		// fComplexDSBNumDSB.clear();
-		// fComplexDSBNumDamage.clear();
-
-		// fNonDSBClusterSizes.clear();
-		// fNonDSBClusterNumSSB.clear();
-		// fNonDSBClusterNumBD.clear();
-		// fNonDSBClusterNumDamage.clear();
 	}
-	// Clear member variables for next event
-	// fGenVEdepStrand1Backbone.erase(fGenVEdepStrand1Backbone.begin(), fGenVEdepStrand1Backbone.end());
-	// fGenVEdepStrand2Backbone.erase(fGenVEdepStrand2Backbone.begin(), fGenVEdepStrand2Backbone.end());
-	// fGenVEdepStrand1Base.erase(fGenVEdepStrand1Base.begin(), fGenVEdepStrand1Base.end());
-	// fGenVEdepStrand2Base.erase(fGenVEdepStrand2Base.begin(), fGenVEdepStrand2Base.end());
 }
 
 
@@ -666,31 +733,6 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB1D()
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::RecordClusteredDamage()
 {
-	// Fake data for testing
-	// fIndicesSimple = {
-	// 	{1,1},
-	// 	{2,0},
-	// 	{5,1},
-	// 	{5,2},
-	// 	{6,2},
-	// 	{6,1},
-	// 	{7,0},
-	// 	{11,1},
-	// 	{12,0},
-	// 	{13,1},
-	// 	{15,2},
-	// 	{17,2},
-	// 	{18,0},
-	// 	{21,2},
-	// 	{22,2},
-	// 	{23,1},
-	// 	{26,0},
-	// 	{29,1},
-	// 	{31,1},
-	// 	{35,0}
-	// };
-	// fThresDistForCluster = 2;
-
 	// Only 1 or 0 damages, so no clustering.
 	if (fIndicesSimple.size() < 2){
 		return;
@@ -1001,50 +1043,3 @@ void ScoreClusteredDNADamage::CreateFakeEnergyMap() {
 	// fVEdepStrand2Base[0] = base2;
 	// fVEdepStrand2Backbone[0] = back2;
 }
-
-
-// //--------------------------------------------------------------------------------------------------
-// // Record indices of DSBs in a vector, whererin each vector element is a 2D array containing the
-// // both indices of a given DSB (i.e. on strand 1 and 2).
-// //--------------------------------------------------------------------------------------------------
-// // std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::RecordDSB(G4int,std::vector<G4int>,
-// // 	std::vector<G4int>)
-// std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::RecordDSB()
-// {
-// 	std::vector<std::array<G4int,2>> indicesDSB;
-
-// 	// fIndicesSSB1 = {0,3,5,9};
-// 	// fIndicesSSB2 = {2,8};
-// 	// fThresDistForDSB = 1;
-
-// 	std::vector<G4int>::iterator site1 = fIndicesSSB1.begin();
-// 	std::vector<G4int>::iterator site2 = fIndicesSSB2.begin();
-
-// 	while (site1 != fIndicesSSB1.end() && site2 != fIndicesSSB2.end()) {
-// 		G4int siteDiff = *site2 - *site1;
-
-// 		// Damage in site 2 is within range of site 1 to count as DSB (either before or after)
-// 		if (abs(siteDiff) <= fThresDistForDSB){
-// 			// Damage in site 1 is earlier or parallel to damage in site 2
-// 			if (*site1 <= *site2) {
-// 				indicesDSB.push_back({*site1,*site2});
-// 			}
-// 			// Damage in site 2 is earlier to damage in site 1
-// 			else {
-// 				indicesDSB.push_back({*site2,*site1});
-// 			}
-// 			site1 = fIndicesSSB1.erase(site1);
-// 			site2 = fIndicesSSB2.erase(site2);
-// 		}
-// 		// Damage in site 2 is earlier than site 1 and outside range to be considered DSB
-// 		else if (siteDiff < 0) {
-// 			site2++;
-// 		}
-// 		// Damage in site 2 is later than site 1 and outside range to be considered DSB.
-// 		else { // if siteDiff > 0
-// 			site1++;
-// 		}
-// 	}
-
-// 	return indicesDSB;
-// }
