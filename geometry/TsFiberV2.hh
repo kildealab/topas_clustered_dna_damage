@@ -49,6 +49,8 @@ private:
     G4String fDNAMaterialName;
     G4Material* fDNAMaterial;
 
+    G4bool fBuildBases;
+
     // GeoVolume parameters
     G4VPhysicalVolume* pFiber;
 

@@ -303,6 +303,29 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	// If this hit deposits energy: 
 	//----------------------------------------------------------------------------------------------
 	if (edep > 0) {
+		// G4cout << "----------------------------------------------------------------------" << G4endl;
+		// G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
+		// G4cout << "This volume: " << touchable->GetVolume()->GetName() << G4endl;
+		// G4cout << "Copy number (touch): " << touchable->GetCopyNumber() << G4endl;
+		// G4cout << "Copy number (direct): " << aStep->GetPreStepPoint()->GetPhysicalVolume()->GetCopyNo() << G4endl;
+		// G4cout << G4endl;
+		// G4cout << "Parent1 volume: " << touchable->GetVolume(1)->GetName() << G4endl;
+		// G4cout << "Parent1 copy number: " << touchable->GetCopyNumber(1) << G4endl;
+		// G4cout << G4endl;
+		// G4cout << "Parent2 volume: " << touchable->GetVolume(2)->GetName() << G4endl;
+		// G4cout << "Parent2 copy number: " << touchable->GetCopyNumber(2) << G4endl;
+		// G4cout << "Parent2 replica number: " << touchable->GetReplicaNumber(2) << G4endl;
+		// G4cout << G4endl;
+		// G4cout << "Parent3 volume: " << touchable->GetVolume(3)->GetName() << G4endl;
+		// G4cout << "Parent3 copy number: " << touchable->GetCopyNumber(3) << G4endl;
+		// G4cout << "Parent3 replica number: " << touchable->GetReplicaNumber(3) << G4endl;
+		// G4cout << G4endl;
+		// G4cout << "Parent4 volume: " << touchable->GetVolume(4)->GetName() << G4endl;
+		// G4cout << "Parent4 copy number: " << touchable->GetCopyNumber(4) << G4endl;
+		// G4cout << "Parent4 replica number: " << touchable->GetReplicaNumber(4) << G4endl;
+		// G4cout << "----------------------------------------------------------------------" << G4endl;
+
+
 		G4StepPoint* preStep = aStep->GetPreStepPoint();
 
 		// Get the indices defining the volume in which energy was deposited
@@ -312,6 +335,11 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 		G4int num_nucleotide = -1;
 
 		G4int volID = preStep->GetPhysicalVolume()->GetCopyNo();
+
+		// G4cout << "----------------------------------------------------------------------" << G4endl;
+		// G4cout << "Energy deposited in: " << preStep->GetPhysicalVolume()->GetMotherLogical()->GetName() << G4endl;
+		// G4cout << "Energy deposited in: " << preStep->GetPhysicalVolume()->GetMotherLogical()->GetCopyNo() << G4endl;
+		// G4cout << "----------------------------------------------------------------------" << G4endl;
 
 		// num_strand = volID / fParserStrand;
 		// num_res = (volID - (num_strand*fParserStrand)) / fParserResidue;
