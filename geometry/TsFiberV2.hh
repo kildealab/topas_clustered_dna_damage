@@ -32,8 +32,7 @@ public:
     GeoManagerV2* fGeoManager;
     GeoCalculationV2* fGeoCalculation;
 
-	G4VPhysicalVolume* Construct();
-    
+	G4VPhysicalVolume* Construct();    
     //void SetMaterial (G4String materialChoice);
     
     void UpdateGeometry();
@@ -50,6 +49,9 @@ private:
     G4Material* fDNAMaterial;
 
     G4bool fBuildBases;
+    G4bool fBuildNucleus;
+    G4int fNumVoxelsPerSide;
+    G4double fVoxelSideLength;
 
     // GeoVolume parameters
     G4VPhysicalVolume* pFiber;
@@ -58,6 +60,8 @@ private:
 
     G4int fVerbose;
     G4double fFactor;
+    G4double fFiberRadius;
+    G4double fFiberHalfLength;
 
     G4double fSugarTHFRadiusWater;
     G4double fSugarTMPRadiusWater;
@@ -121,6 +125,10 @@ private:
                              std::map<G4ThreeVector, G4double> *tarMap,
                              G4String volName = "",
                              G4bool in = false);
+
+    //----------------------------------------------------------------------------------------------
+    //----------------------------------------------------------------------------------------------
+    G4LogicalVolume *ConstructLogicalVoxel(G4LogicalVolume* logicalFiber);
 
     void ThrowOverlapError();
 };

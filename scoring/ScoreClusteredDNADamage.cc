@@ -142,13 +142,24 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	else
 		fDoseThreshold = -1.;
 
-	if (fPm->ParameterExists(GetFullParmName("ComponentShape")))
-		fComponentShape = fPm->GetStringParameter(GetFullParmName("ComponentShape"));
-	else 
-		fComponentShape = "";
+	// if (fPm->ParameterExists(GetFullParmName("ComponentShape")))
+	// 	fComponentShape = fPm->GetStringParameter(GetFullParmName("ComponentShape"));
+	// else 
+	// 	fComponentShape = "";
 
-	if (fPm->ParameterExists(GetFullParmName("ComponentDimensions")))
-		fComponentDimensions = fPm->GetDoubleVector(GetFullParmName("ComponentDimensions"), "Length");
+	// if (fPm->ParameterExists(GetFullParmName("ComponentDimensions")))
+	// 	fComponentDimensions = fPm->GetDoubleVector(GetFullParmName("ComponentDimensions"), "Length");
+
+	if (fPm->ParameterExists(GetFullParmName("NumVoxelsPerSide")))
+		fNumVoxelsPerSide = fPm->GetIntegerParameter(GetFullParmName("NumVoxelsPerSide"));
+	else 
+		fNumVoxelsPerSide = 1;
+
+	if (fPm->ParameterExists(GetFullParmName("VoxelSideLength")))
+		fVoxelSideLength = fPm->GetDoubleParameter(GetFullParmName("VoxelSideLength"),"Length");
+	else 
+		fVoxelSideLength = 150*nm;	
+
 
 	fNumberOfThreads = fPm->GetIntegerParameter("Ts/NumberOfThreads");
 
@@ -212,24 +223,26 @@ ScoreClusteredDNADamage::~ScoreClusteredDNADamage() {
 G4double ScoreClusteredDNADamage::CalculateComponentVolume() {
 	G4double componentVolume;
 
-	if (fComponentShape == "box") {
-		componentVolume = fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
-	}
-	else if (fComponentShape == "cylinder") {
-		componentVolume = CLHEP::pi*pow(fComponentDimensions[0],2)*(2*fComponentDimensions[1]);
-	}
-	else if (fComponentShape == "ellipsoid") {
-		componentVolume = 4.0/3.0*CLHEP::pi*fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
-	}
-	else if (fComponentShape == "sphere") {
-		componentVolume = 4.0/3.0*CLHEP::pi*pow(fComponentDimensions[0],3);
-	}
-	// Throw error if invalid shape is specified
-	else {
-		G4cerr << "Topas is exiting due to a serious error in the scoring parameter ComponentShape." << G4endl;
-		G4cerr << "Please use one of these shapes that matches your scoring component: box, cylinder, ellipsoid, sphere" << G4endl;
-		fPm->AbortSession(1);
-	}
+	componentVolume = pow(fVoxelSideLength*fNumVoxelsPerSide,3);
+
+	// if (fComponentShape == "box") {
+	// 	componentVolume = fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
+	// }
+	// else if (fComponentShape == "cylinder") {
+	// 	componentVolume = CLHEP::pi*pow(fComponentDimensions[0],2)*(2*fComponentDimensions[1]);
+	// }
+	// else if (fComponentShape == "ellipsoid") {
+	// 	componentVolume = 4.0/3.0*CLHEP::pi*fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
+	// }
+	// else if (fComponentShape == "sphere") {
+	// 	componentVolume = 4.0/3.0*CLHEP::pi*pow(fComponentDimensions[0],3);
+	// }
+	// // Throw error if invalid shape is specified
+	// else {
+	// 	G4cerr << "Topas is exiting due to a serious error in the scoring parameter ComponentShape." << G4endl;
+	// 	G4cerr << "Please use one of these shapes that matches your scoring component: box, cylinder, ellipsoid, sphere" << G4endl;
+	// 	fPm->AbortSession(1);
+	// }
 
 	return componentVolume;
 }

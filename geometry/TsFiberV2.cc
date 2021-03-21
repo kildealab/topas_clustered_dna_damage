@@ -82,17 +82,10 @@ G4VPhysicalVolume* TsFiberV2::Construct()
 {
 	BeginConstruction();
 
-    auto start_total = std::chrono::high_resolution_clock::now();
-
-    G4double* envelopeDimensions = fPm->GetDoubleVector(GetFullParmName("Dimensions"),"Length");
-    
-    //Wrapping component for whole fiber    
-    // G4Tubs* sWrapper = new G4Tubs("solid_wrapper", 0., envelopeDimensions[0], envelopeDimensions[1], 0, 360);
-    G4Box* sWrapper = new G4Box("solid_wrapper", envelopeDimensions[0], envelopeDimensions[1], envelopeDimensions[2]);
-    fEnvelopeLog = CreateLogicalVolume(sWrapper);
-    fEnvelopePhys = CreatePhysicalVolume(fEnvelopeLog);
+    auto start_total = std::chrono::high_resolution_clock::now();    
 
     // Get some parameters
+    // G4double* envelopeDimensions = fPm->GetDoubleVector(GetFullParmName("Dimensions"),"Length");
     G4int numBpPerNucleosome = fPm->GetIntegerParameter(GetFullParmName("DNANumBpPerNucleosome"));
     G4int numNucleosomePerFiber = fPm->GetIntegerParameter(GetFullParmName("DnaNumNucleosomePerFiber"));
     fCutVolumes = fPm->GetBooleanParameter(GetFullParmName("CutVolumes"));
@@ -101,12 +94,18 @@ G4VPhysicalVolume* TsFiberV2::Construct()
     fQuitIfOverlap = fPm->GetBooleanParameter("Ge/QuitIfOverlapDetected");
     fUseG4Volumes = fPm->GetBooleanParameter("Ge/MyDNA/UseG4Volumes");
     fBuildBases = fPm->GetBooleanParameter("Ge/MyDNA/BuildBases");
+    fBuildNucleus = fPm->GetBooleanParameter("Ge/MyDNA/BuildNucleus");
+    fNumVoxelsPerSide = fPm->GetIntegerParameter("Ge/MyDNA/NumVoxelsPerSide");
+    fVoxelSideLength = fPm->GetDoubleParameter("Ge/MyDNA/VoxelSideLength","Length");
 
     // ---------------------------------------------------------------------------------------------
-    // New stuff: read-in fibre geometry from GeoCalculation object
+    // Intialize member variables. A GeoCalculation object is used set various parameters for the 
+    // configuration of DNA content in single chromatin fiber. 
     // ---------------------------------------------------------------------------------------------
     fVerbose = 0;
     fFactor = 1.;
+    fFiberRadius = 17.*fFactor*nm;
+    fFiberHalfLength = 68.*fFactor*nm;
 
     fGeoCalculation->Initialize();
 
@@ -137,309 +136,72 @@ G4VPhysicalVolume* TsFiberV2::Construct()
     // if ( fPm->ParameterExists(GetFullParmName("DNAMaterialName")))
     //     fDNAMaterialName = fPm->GetStringParameter(GetFullParmName("DNAMaterialName"));
     // fDNAMaterial = G4NistManager::Instance()->FindOrBuildMaterial("G4_WATER");
-    // ---------------------------------------------------------------------------------------------
 
-    G4double fibRadius = 17.*fFactor*nm;
-    G4double fibHalfLength = 68.*fFactor*nm;
+    //----------------------------------------------------------------------------------------------
+    // Construct wrapper / envelope volume.  
+    //----------------------------------------------------------------------------------------------
+    G4double envelopeSideLength = fNumVoxelsPerSide * fVoxelSideLength;
+    // G4Tubs* sWrapper = new G4Tubs("solid_wrapper", 0., envelopeDimensions[0], envelopeDimensions[1], 0, 360);
+    G4Box* sWrapper = new G4Box("solid_wrapper", envelopeSideLength, envelopeSideLength, envelopeSideLength);
+    fEnvelopeLog = CreateLogicalVolume(sWrapper);
+    fEnvelopePhys = CreatePhysicalVolume(fEnvelopeLog);
 
-    // Build DNA in the fiber, save as a logical volumes
-    G4LogicalVolume* lFiber;
-    if (fBuildBases) {
-        lFiber = BuildLogicFiber(fGeoCalculation->GetAllDNAVolumePositions(),
-                    fGeoCalculation->GetNucleosomePosition(),
-                    fGeoCalculation->GetPosAndRadiusMap(),
-                    fCutVolumes,
-                    fCheckForOverlaps,
-                    fOverlapsResolution,
-                    fQuitIfOverlap);
+
+    //----------------------------------------------------------------------------------------------
+    // Construct the logical volume for a single chromatin fiber.
+    //----------------------------------------------------------------------------------------------
+    G4LogicalVolume* lFiber = BuildLogicFiber(fGeoCalculation->GetAllDNAVolumePositions(),
+        fGeoCalculation->GetNucleosomePosition(),
+        fGeoCalculation->GetPosAndRadiusMap(),
+        fCutVolumes,
+        fCheckForOverlaps,
+        fOverlapsResolution,
+        fQuitIfOverlap);
+
+    //----------------------------------------------------------------------------------------------
+    // Construct physical volume for the DNA. Either a voxelized nucleus containing many fibers or a
+    // single fiber. Place in the outermost physical volume for this custom component (i.e. in
+    // fEnvelopePhys).
+    //----------------------------------------------------------------------------------------------
+    if (fBuildNucleus) {
+
+        G4LogicalVolume* voxelLogical = ConstructLogicalVoxel(lFiber);
+        G4VisAttributes voxelVis(G4Colour(1.0, 1.0, 1.0) );
+        voxelVis.SetVisibility(false);
+        voxelLogical->SetVisAttributes(voxelVis);
+
+        //------------------------------------------------------------------------------------------
+        // Generate cubic arrangement of voxels using replica volumes. When doing nested replica
+        // volumes, start construction with the outermost replicated direction and "reserve" the 
+        // space. Then fill that space with nested replicas as shown below. 
+        //------------------------------------------------------------------------------------------
+        G4double nucleusSideLength = fVoxelSideLength * fNumVoxelsPerSide;
+
+        // Outermost dimension is Y. Reserve 3D space for replicated 2D arrays of voxels.
+        G4Box* solidEmptyVoxelArea = new G4Box("solid_voxel_area", nucleusSideLength, fVoxelSideLength, nucleusSideLength);
+        G4LogicalVolume* logEmptyVoxelArea = CreateLogicalVolume("logical_voxel_area",fWaterName,solidEmptyVoxelArea);
+        logEmptyVoxelArea->SetVisAttributes(voxelVis);
+        G4VPhysicalVolume* voxels_3d = CreatePhysicalVolume("ReplicaVoxels3D",logEmptyVoxelArea,fEnvelopePhys,kYAxis,fNumVoxelsPerSide,2*fVoxelSideLength);
+
+        // Middle dimension is X. Reserve 2D space for replicated 1D arrays of voxels in xz-plane.
+        G4Box* solidEmptyVoxelLength = new G4Box("solid_voxel_length", fVoxelSideLength, fVoxelSideLength, nucleusSideLength);
+        G4LogicalVolume* logEmptyVoxelLength = CreateLogicalVolume("logical_voxel_length",fWaterName,solidEmptyVoxelLength);
+        logEmptyVoxelLength->SetVisAttributes(voxelVis);
+        G4VPhysicalVolume* voxels_2d = CreatePhysicalVolume("ReplicaVoxels2D",logEmptyVoxelLength,voxels_3d,kXAxis,fNumVoxelsPerSide,2*fVoxelSideLength);
+
+        // Innermost dimension is Z. Fill 1D array of voxels in z-dimension.
+        G4VPhysicalVolume* voxels_1d = CreatePhysicalVolume("ReplicaVoxels1D",voxelLogical,voxels_2d,kZAxis,fNumVoxelsPerSide,2*fVoxelSideLength);
     }
+    // Or place single fiber physical volume
     else {
-        G4Tubs* solidFiber = new G4Tubs("solid histone", 0., 17.*fFactor*nm, 68.*fFactor*nm, 0, 360); // radius & half length
-
-        G4VisAttributes fiberVis(G4Colour(1.0, 1.0, 1.0, 0.1) );
-        // fiberVis.SetVisibility(false);
-        fiberVis.SetForceSolid(true);
-        // fiberVis.SetForceWireframe(true);
-
-        if (fUseG4Volumes) {
-            lFiber = new G4LogicalVolume(solidFiber,fWater,"logic_fiber");
+        if (fUseG4Volumes){
+            G4ThreeVector emptyPlacement = G4ThreeVector(0.,0.,0.);
+            pFiber = new G4PVPlacement(0,emptyPlacement,lFiber,"Fiber",fEnvelopeLog,false,0);
         }
-        else {
-            lFiber = CreateLogicalVolume("logic_fiber",fWaterName,solidFiber);
-        }  
-        lFiber->SetVisAttributes(fiberVis);
+        else{
+            pFiber = CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
+        }
     }
-
-    auto start_voxel = std::chrono::high_resolution_clock::now();
-
-    // Make voxel
-    G4Box* voxelSolid = new G4Box("solid_voxel", 150*nm, 150*nm, 150*nm);
-    G4LogicalVolume* voxelLogical = CreateLogicalVolume("logic_voxel",fWaterName,voxelSolid);
-    G4VisAttributes voxelVis(G4Colour(1.0, 1.0, 1.0) );
-    voxelVis.SetVisibility(false);
-    voxelLogical->SetVisAttributes(voxelVis);
-
-    // Proper fibre placements
-    G4double posXf1 = 119*nm;
-    G4double posYf1 = 119*nm;
-    G4double posZf1 = 34*nm;
-    G4ThreeVector fibrePlacement = G4ThreeVector(posXf1,posYf1,posZf1);
-    G4RotationMatrix* fibreRotation = new G4RotationMatrix();
-    CreatePhysicalVolume("Fiber",0,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    G4double posXf2 = 34*nm;
-    G4double posYf2 = 119*nm;
-    G4double posZf2 = -51*nm;
-    fibrePlacement = G4ThreeVector(posXf2,posYf2,posZf2);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(3*CLHEP::pi/2);
-    CreatePhysicalVolume("Fiber",1,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    G4double posXf3 = -51*nm;
-    G4double posYf3 = 119*nm;
-    G4double posZf3 = 34*nm;
-    fibrePlacement = G4ThreeVector(posXf3,posYf3,posZf3);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",2,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    G4double posXf4 = -51*nm;
-    G4double posYf4 = 34*nm;
-    G4double posZf4 = 119*nm;
-    fibrePlacement = G4ThreeVector(posXf4,posYf4,posZf4);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(CLHEP::pi);
-    fibreRotation->rotateX(CLHEP::pi/2);
-    CreatePhysicalVolume("Fiber",3,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    G4double posXf5 = -51*nm;
-    G4double posYf5 = -51*nm;
-    G4double posZf5 = 34*nm;
-    fibrePlacement = G4ThreeVector(posXf5,posYf5,posZf5);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(CLHEP::pi);
-    fibreRotation->rotateX(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",4,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    G4double posXf6 = 34*nm;
-    G4double posYf6 = -51*nm;
-    G4double posZf6 = -51*nm;
-    fibrePlacement = G4ThreeVector(posXf6,posYf6,posZf6);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(3*CLHEP::pi/2);
-    fibreRotation->rotateX(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",5,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    G4double posXf7 = 119*nm;
-    G4double posYf7 = -51*nm;
-    G4double posZf7 = 34*nm;
-    fibrePlacement = G4ThreeVector(posXf7,posYf7,posZf7);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateX(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",6,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    G4double loopshift = 34*nm;
-    fibrePlacement = G4ThreeVector(posXf1-loopshift,posYf1-loopshift,posZf1-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    CreatePhysicalVolume("Fiber",7,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf2-loopshift,posYf2-loopshift,posZf2-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(3*CLHEP::pi/2);
-    CreatePhysicalVolume("Fiber",8,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf3-loopshift,posYf3-loopshift,posZf3-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",9,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf4-loopshift,posYf4-loopshift,posZf4-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(CLHEP::pi);
-    fibreRotation->rotateX(CLHEP::pi/2);
-    CreatePhysicalVolume("Fiber",10,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf5-loopshift,posYf5-loopshift,posZf5-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(CLHEP::pi);
-    fibreRotation->rotateX(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",11,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf6-loopshift,posYf6-loopshift,posZf6-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(3*CLHEP::pi/2);
-    fibreRotation->rotateX(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",12,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf7-loopshift,posYf7-loopshift,posZf7-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateX(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",13,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    loopshift *= 2;
-    fibrePlacement = G4ThreeVector(posXf1-loopshift,posYf1-loopshift,posZf1-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    CreatePhysicalVolume("Fiber",14,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf2-loopshift,posYf2-loopshift,posZf2-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(3*CLHEP::pi/2);
-    CreatePhysicalVolume("Fiber",15,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf3-loopshift,posYf3-loopshift,posZf3-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",16,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf4-loopshift,posYf4-loopshift,posZf4-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(CLHEP::pi);
-    fibreRotation->rotateX(CLHEP::pi/2);
-    CreatePhysicalVolume("Fiber",17,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf5-loopshift,posYf5-loopshift,posZf5-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(CLHEP::pi);
-    fibreRotation->rotateX(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",18,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-    fibrePlacement = G4ThreeVector(posXf6-loopshift,posYf6-loopshift,posZf6-loopshift);
-    fibreRotation = new G4RotationMatrix();
-    fibreRotation->rotateY(3*CLHEP::pi/2);
-    fibreRotation->rotateX(CLHEP::pi);
-    CreatePhysicalVolume("Fiber",19,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
-
-
-    // // Test fibre placements
-    // G4ThreeVector fibrePlacement = G4ThreeVector(-100*nm,50*nm,75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",0,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(-50*nm,50*nm,75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",1,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(0*nm,50*nm,75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",2,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(50*nm,50*nm,75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",3,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(100*nm,50*nm,75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",4,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-
-    // fibrePlacement = G4ThreeVector(-100*nm,-50*nm,75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",5,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(-50*nm,-50*nm,75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",6,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(0*nm,-50*nm,75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",7,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(50*nm,-50*nm,75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",8,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(100*nm,-50*nm,75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",9,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-
-    // fibrePlacement = G4ThreeVector(-100*nm,50*nm,-75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",10,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(-50*nm,50*nm,-75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",11,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(0*nm,50*nm,-75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",12,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(50*nm,50*nm,-75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",13,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(100*nm,50*nm,-75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",14,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-
-    // fibrePlacement = G4ThreeVector(-100*nm,-50*nm,-75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",15,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(-50*nm,-50*nm,-75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",16,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(0*nm,-50*nm,-75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",17,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(50*nm,-50*nm,-75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",18,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-    // fibrePlacement = G4ThreeVector(100*nm,-50*nm,-75*nm);
-    // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
-    // CreatePhysicalVolume("Fiber",19,true,lFiber,0,&fibrePlacement,voxelLogical);
-
-
-    // Timing info
-    auto finish_voxel = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_voxel = finish_voxel-start_voxel;
-    G4cout << "Time to make voxel = " << elapsed_voxel.count() << " s" << G4endl;  
-
-
-    // // 1D array of voxels
-    // auto start_array = std::chrono::high_resolution_clock::now();
-    // G4VPhysicalVolume* voxels_1d = CreatePhysicalVolume("ReplicaVoxels",voxelLogical,fEnvelopePhys,kZAxis,25,300*nm);
-    // auto finish_array = std::chrono::high_resolution_clock::now();
-    // std::chrono::duration<double> elapsed_array = finish_array-start_array;
-    // G4cout << "Time to make section of voxels = " << elapsed_array.count() << " s" << G4endl;  
-
-    // // 2D array of voxels
-    // G4Box* solidEmptyVoxelLength = new G4Box("solid_voxel", 150*nm, 150*nm, 3750*nm);
-    // G4LogicalVolume* logEmptyVoxelLength = CreateLogicalVolume("voxel_length",fWaterName,solidEmptyVoxelLength);
-    // G4VPhysicalVolume* voxels_2d = CreatePhysicalVolume("ReplicaVoxels2D",logEmptyVoxelLength,fEnvelopePhys,kXAxis,25,300*nm);
-    // G4VPhysicalVolume* voxels_1d = CreatePhysicalVolume("ReplicaVoxels",voxelLogical,voxels_2d,kZAxis,25,300*nm);
-
-    // // 3D array of voxels (generate in inverse order; i.e. largest first)
-    G4int numVoxels = round(envelopeDimensions[2]/(150*nm));
-    G4Box* solidEmptyVoxelArea = new G4Box("solid_voxel_area", envelopeDimensions[1], 150*nm, envelopeDimensions[2]);
-    G4LogicalVolume* logEmptyVoxelArea = CreateLogicalVolume("logical_voxel_area",fWaterName,solidEmptyVoxelArea);
-    logEmptyVoxelArea->SetVisAttributes(voxelVis);
-    G4VPhysicalVolume* voxels_3d = CreatePhysicalVolume("ReplicaVoxels3D",logEmptyVoxelArea,fEnvelopePhys,kYAxis,numVoxels,300*nm);
-
-    G4Box* solidEmptyVoxelLength = new G4Box("solid_voxel_length", 150*nm, 150*nm, envelopeDimensions[2]);
-    G4LogicalVolume* logEmptyVoxelLength = CreateLogicalVolume("logical_voxel_length",fWaterName,solidEmptyVoxelLength);
-    logEmptyVoxelLength->SetVisAttributes(voxelVis);
-    G4VPhysicalVolume* voxels_2d = CreatePhysicalVolume("ReplicaVoxels2D",logEmptyVoxelLength,voxels_3d,kXAxis,numVoxels,300*nm);
-
-    G4VPhysicalVolume* voxels_1d = CreatePhysicalVolume("ReplicaVoxels1D",voxelLogical,voxels_2d,kZAxis,numVoxels,300*nm);
-
-
-
-    // CreatePhysicalVolume("Fiber",lFiber,fEnvelopePhys,kZAxis,2,136*nm);
-
-    // Create physical volume for the fibre & place in the world
-    // if (fUseG4Volumes){
-    //     G4ThreeVector emptyPlacement = G4ThreeVector(0.,0.,0.);
-    //     pFiber = new G4PVPlacement(0,emptyPlacement,lFiber,"Fiber",fEnvelopeLog,false,0);
-    // }
-    // else{
-    //     pFiber = CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
-    // }
 
     // Report total time required to generate geometry
     auto finish_total = std::chrono::high_resolution_clock::now();
@@ -479,7 +241,7 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
     //----------------------------------------------------------------------------------------------
     // Create cylindrical fiber volume
     //----------------------------------------------------------------------------------------------
-    G4Tubs* solidFiber = new G4Tubs("solid histone", 0., 17.*fFactor*nm, 68.*fFactor*nm, 0, 360); // radius & half length
+    G4Tubs* solidFiber = new G4Tubs("solid_fiber", 0., fFiberRadius, fFiberHalfLength, 0, 360); // radius & half length
 
     G4VisAttributes fiberVis(G4Colour(1.0, 1.0, 1.0, 0.1) );
     // fiberVis.SetVisibility(false);
@@ -494,6 +256,11 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
         logicFiber = CreateLogicalVolume("logic_fiber",fWaterName,solidFiber);
     }  
     logicFiber->SetVisAttributes(fiberVis);
+
+    // If not building DNA in the fiber, return now with empty fiber (for visualization of large geometries)
+    if (!fBuildBases) {
+        return logicFiber;
+    }
 
     //----------------------------------------------------------------------------------------------
     // Create the histone volume
@@ -1254,6 +1021,241 @@ void TsFiberV2::ThrowOverlapError()
     exit(0);
 }
 
+
+//--------------------------------------------------------------------------------------------------
+// This method arranges identical DNA fibers in a cubic voxel, and returns the logical volume of
+// that voxel. Current implementation places 20 fibers in fractal pattern, similar to that 
+// described by Zhu et al. (2020).
+//--------------------------------------------------------------------------------------------------
+G4LogicalVolume* TsFiberV2::ConstructLogicalVoxel(G4LogicalVolume* lFiber) {
+        // Make empty voxel
+        G4Box* voxelSolid = new G4Box("solid_voxel",fVoxelSideLength,fVoxelSideLength,fVoxelSideLength);
+        G4LogicalVolume* voxelLogical = CreateLogicalVolume("logic_voxel",fWaterName,voxelSolid);
+
+        // Populate voxel with fibres. Arrange in fractal pattern
+        // Fractal loop 1 (7 fibers)
+        //------------------------------------------------------------------------------------------
+        G4double posXf1 = 119*nm;
+        G4double posYf1 = 119*nm;
+        G4double posZf1 = 34*nm;
+        G4ThreeVector fibrePlacement = G4ThreeVector(posXf1,posYf1,posZf1);
+        G4RotationMatrix* fibreRotation = new G4RotationMatrix();
+        CreatePhysicalVolume("Fiber",0,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        G4double posXf2 = 34*nm;
+        G4double posYf2 = 119*nm;
+        G4double posZf2 = -51*nm;
+        fibrePlacement = G4ThreeVector(posXf2,posYf2,posZf2);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(3*CLHEP::pi/2);
+        CreatePhysicalVolume("Fiber",1,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        G4double posXf3 = -51*nm;
+        G4double posYf3 = 119*nm;
+        G4double posZf3 = 34*nm;
+        fibrePlacement = G4ThreeVector(posXf3,posYf3,posZf3);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",2,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        G4double posXf4 = -51*nm;
+        G4double posYf4 = 34*nm;
+        G4double posZf4 = 119*nm;
+        fibrePlacement = G4ThreeVector(posXf4,posYf4,posZf4);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(CLHEP::pi);
+        fibreRotation->rotateX(CLHEP::pi/2);
+        CreatePhysicalVolume("Fiber",3,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        G4double posXf5 = -51*nm;
+        G4double posYf5 = -51*nm;
+        G4double posZf5 = 34*nm;
+        fibrePlacement = G4ThreeVector(posXf5,posYf5,posZf5);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(CLHEP::pi);
+        fibreRotation->rotateX(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",4,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        G4double posXf6 = 34*nm;
+        G4double posYf6 = -51*nm;
+        G4double posZf6 = -51*nm;
+        fibrePlacement = G4ThreeVector(posXf6,posYf6,posZf6);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(3*CLHEP::pi/2);
+        fibreRotation->rotateX(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",5,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        G4double posXf7 = 119*nm;
+        G4double posYf7 = -51*nm;
+        G4double posZf7 = 34*nm;
+        fibrePlacement = G4ThreeVector(posXf7,posYf7,posZf7);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateX(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",6,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+
+        // Fractal loop 2 (7 fibers)
+        //------------------------------------------------------------------------------------------
+        G4double loopshift = 34*nm;
+        fibrePlacement = G4ThreeVector(posXf1-loopshift,posYf1-loopshift,posZf1-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        CreatePhysicalVolume("Fiber",7,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf2-loopshift,posYf2-loopshift,posZf2-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(3*CLHEP::pi/2);
+        CreatePhysicalVolume("Fiber",8,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf3-loopshift,posYf3-loopshift,posZf3-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",9,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf4-loopshift,posYf4-loopshift,posZf4-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(CLHEP::pi);
+        fibreRotation->rotateX(CLHEP::pi/2);
+        CreatePhysicalVolume("Fiber",10,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf5-loopshift,posYf5-loopshift,posZf5-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(CLHEP::pi);
+        fibreRotation->rotateX(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",11,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf6-loopshift,posYf6-loopshift,posZf6-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(3*CLHEP::pi/2);
+        fibreRotation->rotateX(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",12,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf7-loopshift,posYf7-loopshift,posZf7-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateX(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",13,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        // fractal loop 3 (6 fibers)
+        //------------------------------------------------------------------------------------------
+        loopshift *= 2;
+        fibrePlacement = G4ThreeVector(posXf1-loopshift,posYf1-loopshift,posZf1-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        CreatePhysicalVolume("Fiber",14,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf2-loopshift,posYf2-loopshift,posZf2-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(3*CLHEP::pi/2);
+        CreatePhysicalVolume("Fiber",15,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf3-loopshift,posYf3-loopshift,posZf3-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",16,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf4-loopshift,posYf4-loopshift,posZf4-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(CLHEP::pi);
+        fibreRotation->rotateX(CLHEP::pi/2);
+        CreatePhysicalVolume("Fiber",17,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf5-loopshift,posYf5-loopshift,posZf5-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(CLHEP::pi);
+        fibreRotation->rotateX(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",18,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+        fibrePlacement = G4ThreeVector(posXf6-loopshift,posYf6-loopshift,posZf6-loopshift);
+        fibreRotation = new G4RotationMatrix();
+        fibreRotation->rotateY(3*CLHEP::pi/2);
+        fibreRotation->rotateX(CLHEP::pi);
+        CreatePhysicalVolume("Fiber",19,true,lFiber,fibreRotation,&fibrePlacement,voxelLogical);
+
+
+        // // Test fibre placements
+        // G4ThreeVector fibrePlacement = G4ThreeVector(-100*nm,50*nm,75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",0,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(-50*nm,50*nm,75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",1,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(0*nm,50*nm,75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",2,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(50*nm,50*nm,75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",3,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(100*nm,50*nm,75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",4,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+
+        // fibrePlacement = G4ThreeVector(-100*nm,-50*nm,75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",5,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(-50*nm,-50*nm,75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",6,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(0*nm,-50*nm,75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",7,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(50*nm,-50*nm,75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",8,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(100*nm,-50*nm,75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",9,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+
+        // fibrePlacement = G4ThreeVector(-100*nm,50*nm,-75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",10,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(-50*nm,50*nm,-75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",11,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(0*nm,50*nm,-75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",12,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(50*nm,50*nm,-75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",13,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(100*nm,50*nm,-75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",14,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+
+        // fibrePlacement = G4ThreeVector(-100*nm,-50*nm,-75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",15,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(-50*nm,-50*nm,-75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",16,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(0*nm,-50*nm,-75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",17,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(50*nm,-50*nm,-75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",18,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        // fibrePlacement = G4ThreeVector(100*nm,-50*nm,-75*nm);
+        // // pFiber = CreatePhysicalVolume("Fiber", lFiber, 0, &fibrePlacement, fEnvelopePhys);
+        // CreatePhysicalVolume("Fiber",19,true,lFiber,0,&fibrePlacement,voxelLogical);
+
+        return voxelLogical;
+}
 
 
 

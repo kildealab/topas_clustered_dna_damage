@@ -87,8 +87,11 @@ private:
     // G4double fDoseCutWorker;
     G4double fEnergyThreshold;
     // G4double fEnergyCutWorker;
-    G4String fComponentShape;
-    G4double* fComponentDimensions;
+    // G4String fComponentShape;
+    // G4double* fComponentDimensions;
+    G4int fNumVoxelsPerSide;
+    G4double fVoxelSideLength;
+
     G4int fNumberOfThreads;
 
 
