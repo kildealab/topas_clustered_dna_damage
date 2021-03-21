@@ -34,6 +34,7 @@ private:
     void AbsorbMapFromWorkerScorer(std::map<G4int,std::map<G4int,std::map<G4int, G4double>>>&,
         std::map<G4int,std::map<G4int,std::map<G4int, G4double>>>&);
     void ResetMemberVariables();
+    void ResetDamageCounterVariables();
     void OutputComplexDSBToFile();
     void OutputNonDSBClusterToFile();
     void OutputRunSummaryToFile();
@@ -44,7 +45,7 @@ private:
 
     G4int CalculateIntegerMagnitude(G4int);
 
-    std::vector<G4int> RecordSimpleDamage(G4double,std::map<G4int,std::map<G4int, G4double>>);
+    std::vector<G4int> RecordSimpleDamage(G4double,std::map<G4int, G4double>);
     std::vector<G4int> RecordDSB1D();
     std::vector<std::vector<G4int>> RecordComplexDSB();
     void RecordClusteredDamage();
@@ -58,6 +59,8 @@ private:
     void PrintDNADamageToConsole();
     
 private:
+    G4double fibEnergy[20];
+    G4double voxEnergy[27];
     // G4Material* fStrand1Material;
     // G4Material* fStrand2Material;
     G4Material* fDNAMaterial;
@@ -74,6 +77,7 @@ private:
     G4int fThresDistForCluster;
 
     G4bool fRecordDamagePerEvent;
+    G4bool fRecordDamagePerFiber;
     G4int fThreadID;
     G4int fNumEvents;
     // G4int fNumEventsScored;
@@ -91,14 +95,15 @@ private:
     // G4double* fComponentDimensions;
     G4int fNumVoxelsPerSide;
     G4double fVoxelSideLength;
+    G4bool fBuildNucleus;
 
     G4int fNumberOfThreads;
 
 
     // G4int fThreadCounter;
-    // std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > worker1Map;
-    // std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > worker2Map;
-    // std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > worker3Map;
+    // std::map<G4int, std::map<G4int, G4double> > worker1Map;
+    // std::map<G4int, std::map<G4int, G4double> > worker2Map;
+    // std::map<G4int, std::map<G4int, G4double> > worker3Map;
 
     // G4int fNumEdeps1;
     // G4double fTotalEdep1;
@@ -114,10 +119,10 @@ private:
     // map1 (key, map2) --> map2 (key, double)
     // First index specifies someting to do with variance reduction / track splitting
     // Second index specifies the bp index
-    std::map<G4int, std::map<G4int, G4double> > fVEdepStrand1Backbone;
-    std::map<G4int, std::map<G4int, G4double> > fVEdepStrand2Backbone;
-    std::map<G4int, std::map<G4int, G4double> > fVEdepStrand1Base;
-    std::map<G4int, std::map<G4int, G4double> > fVEdepStrand2Base;
+    std::map<G4int, G4double> fVEdepStrand1Backbone;
+    std::map<G4int, G4double> fVEdepStrand2Backbone;
+    std::map<G4int, G4double> fVEdepStrand1Base;
+    std::map<G4int, G4double> fVEdepStrand2Base;
     
     // Records energy deposited in bp in one of the strands of the DNA double helix in a
     // triple-nested map structure
@@ -125,14 +130,15 @@ private:
     // First index specifies the DNA fibre
     // Second index specifies someting to do with variance reduction / track splitting
     // Third index specifies the bp index
-    std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand1Backbone;
-    std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand2Backbone;
-    std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand1Base;
-    std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand2Base;
+    std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fGenVEdepStrand1Backbone;
+    std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fGenVEdepStrand2Backbone;
+    std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fGenVEdepStrand1Base;
+    std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fGenVEdepStrand2Base;
     
-    G4int fNbOfAlgo;
+    // G4int fNbOfAlgo;
     G4int fEventID;
-    G4int fDNAParent; // if any
+    G4int fFiberID;
+    G4int fVoxelID;
 
     G4int fTotalSSB;
     G4int fTotalBD;
@@ -146,6 +152,16 @@ private:
     static const G4int fIdSSB = 0;
     static const G4int fIdBD = 1;
     static const G4int fIdDSB = 2;
+
+    static const G4int fParentIndexFiber = 1; // Touchable history index for accessing DNA fiber
+    static const G4int fParentIndexVoxelZ = 2; // Touchable history index for accessing Z voxels
+    static const G4int fParentIndexVoxelX = 3; // Touchable history index for accessing X voxels
+    static const G4int fParentIndexVoxelY = 4; // Touchable history index for accessing Y voxels
+
+    // When reporting yields if, for example, aggregating over all events, set event number = -1
+    static const G4int fAggregateValueIndicator = -1; 
+
+    G4int fNumFibers;
 
     // Vectors to hold indices of simple damages
     std::vector<G4int> fIndicesSSB1;

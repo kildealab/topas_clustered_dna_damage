@@ -46,6 +46,13 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 
 {
 	SetUnit("");
+
+	for (G4int i = 0; i < 20; i++) {
+		fibEnergy[i] = 0.;
+	}
+	for (G4int i = 0; i < 27; i++) {
+		voxEnergy[i] = 0.;
+	}
 	
 	// Default parameters
 	fThresDistForDSB = 10;
@@ -64,7 +71,10 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fTotalEdep = 0.;
 	fComponentVolume = 0.;
 
-	fNbOfAlgo = 1; // Used with variance reduction
+	fFiberID = 0;
+	fVoxelID = 0;
+
+	// fNbOfAlgo = 1; // Used with variance reduction
 	
 	if ( fPm->ParameterExists(GetFullParmName("BasePairDistanceForDefiningDSB")) )
 		fThresDistForDSB = fPm->GetIntegerParameter(GetFullParmName("BasePairDistanceForDefiningDSB"));
@@ -83,6 +93,13 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 		fRecordDamagePerEvent = fPm->GetBooleanParameter(GetFullParmName("RecordDamagePerEvent"));
 	else 
 		fRecordDamagePerEvent = false;
+
+	// Specify whether to report damage on a per-fibre basis (vs. grouping together). Note that
+	// damage in separate fibers are never considered together when clustering damage.
+	if ( fPm->ParameterExists(GetFullParmName("RecordDamagePerFiber")))
+		fRecordDamagePerFiber = fPm->GetBooleanParameter(GetFullParmName("RecordDamagePerFiber"));
+	else 
+		fRecordDamagePerFiber = false;
 
 	// Files for outputting run information & clustered damage details
 	if ( fPm->ParameterExists(GetFullParmName("FileRunSummary")))
@@ -160,6 +177,19 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	else 
 		fVoxelSideLength = 150*nm;	
 
+	if (fPm->ParameterExists(GetFullParmName("BuildNucleus")))
+		fBuildNucleus = fPm->GetBooleanParameter(GetFullParmName("BuildNucleus"));
+	else 
+		fBuildNucleus = false;
+
+	if (fBuildNucleus) {
+		// fNumFibers = 20*pow(fNumVoxelsPerSide,3);
+		fNumFibers = 20;
+	}
+	else {
+		fNumFibers = 1;
+	}
+
 
 	fNumberOfThreads = fPm->GetIntegerParameter("Ts/NumberOfThreads");
 
@@ -183,18 +213,13 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fNumBpMagnitude = CalculateIntegerMagnitude(fNucleoNum*fBpNum);
 	fParserResidue = fNumBpMagnitude*10;
 	fParserStrand = fNumBpMagnitude*100;
-	
-	// This is for variance reduction
-	if ( fPm->ParameterExists(GetFullParmName("NumberOfSplit")) )
-		fNbOfAlgo = fPm->GetIntegerParameter(GetFullParmName("NumberOfSplit"));
-	
+		
 	fThreadID = 0;
 	fEventID = 0;
 	
-	// fNtuple->RegisterColumnI(&fEventID, "Event number"); // ID of primary particle / event / history
-	fNtuple->RegisterColumnI(&fThreadID, "Thread number"); // ID of primary particle / event / history
-	fNtuple->RegisterColumnI(&fEventID, "Event number"); // ID of primary particle / event / history
-	// fNtuple->RegisterColumnI(&fDNAParent, "DNA parent geometry"); // Unsure. Not initiated in header either
+	fNtuple->RegisterColumnI(&fThreadID, "Thread ID"); // Unique thread ID
+	fNtuple->RegisterColumnI(&fEventID, "Event ID"); // Unique ID of primary particle / event / history
+	fNtuple->RegisterColumnI(&fFiberID, "Fiber ID"); // Unique fiber ID
 	fNtuple->RegisterColumnI(&fTotalSSB, "Single strand breaks"); // Number of SSB caused by this primary particle
 	fNtuple->RegisterColumnI(&fTotalDSB, "Double strand breaks"); // Number of simple DSB caused by this primary particle
 	fNtuple->RegisterColumnI(&fTotalBD, "Base damages"); // Number of BD caused by this primary particle
@@ -304,20 +329,19 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	G4double edep = aStep->GetTotalEnergyDeposit(); ///eV;
 	fTotalEdep += edep; // record energy deposition in whole volume so can abort run if needed
 
+	// Material filtering (only proceed if in sensitive DNA volumes)
 	G4Material* material = aStep->GetPreStepPoint()->GetMaterial();
 	if ( material != fDNAMaterial) {
-		// G4cout << "Hit in non-DNA material: " << aStep->GetPreStepPoint()->GetPhysicalVolume()->GetName() << G4endl;
 		return false;
 	}
-	// G4cout << "-----------Hit in DNA material: " << aStep->GetPreStepPoint()->GetPhysicalVolume()->GetName() << G4endl;
-
 
 	//----------------------------------------------------------------------------------------------
 	// If this hit deposits energy: 
 	//----------------------------------------------------------------------------------------------
 	if (edep > 0) {
+		G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
+
 		// G4cout << "----------------------------------------------------------------------" << G4endl;
-		// G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
 		// G4cout << "This volume: " << touchable->GetVolume()->GetName() << G4endl;
 		// G4cout << "Copy number (touch): " << touchable->GetCopyNumber() << G4endl;
 		// G4cout << "Copy number (direct): " << aStep->GetPreStepPoint()->GetPhysicalVolume()->GetCopyNo() << G4endl;
@@ -337,7 +361,18 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 		// G4cout << "Parent4 copy number: " << touchable->GetCopyNumber(4) << G4endl;
 		// G4cout << "Parent4 replica number: " << touchable->GetReplicaNumber(4) << G4endl;
 		// G4cout << "----------------------------------------------------------------------" << G4endl;
+		// Determine unique fiber ID number using copy ID of parent
+		fFiberID = touchable->GetCopyNumber(fParentIndexFiber);
+		fibEnergy[fFiberID] += edep;
 
+		// Determine unique voxel ID number using replica ID of parent volumes
+		if (fBuildNucleus) {
+			G4int voxIDZ = touchable->GetReplicaNumber(fParentIndexVoxelZ);
+			G4int voxIDX = touchable->GetReplicaNumber(fParentIndexVoxelX);
+			G4int voxIDY = touchable->GetReplicaNumber(fParentIndexVoxelY);
+			fVoxelID = voxIDZ + (fNumVoxelsPerSide*voxIDX) + (fNumVoxelsPerSide*fNumVoxelsPerSide*voxIDY);
+		}
+		voxEnergy[fVoxelID] += edep;
 
 		G4StepPoint* preStep = aStep->GetPreStepPoint();
 
@@ -349,11 +384,6 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 
 		G4int volID = preStep->GetPhysicalVolume()->GetCopyNo();
 
-		// G4cout << "----------------------------------------------------------------------" << G4endl;
-		// G4cout << "Energy deposited in: " << preStep->GetPhysicalVolume()->GetMotherLogical()->GetName() << G4endl;
-		// G4cout << "Energy deposited in: " << preStep->GetPhysicalVolume()->GetMotherLogical()->GetCopyNo() << G4endl;
-		// G4cout << "----------------------------------------------------------------------" << G4endl;
-
 		// num_strand = volID / fParserStrand;
 		// num_res = (volID - (num_strand*fParserStrand)) / fParserResidue;
 		// num_nucleotide = volID - (num_strand*fParserStrand) - (num_res*fParserResidue);
@@ -363,10 +393,6 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 
 
 		if ( num_strand == 0 || num_strand == 1 ) {
-			G4TouchableHistory* touchable = (G4TouchableHistory*)(preStep->GetTouchable());
-			// G4int numStrand  = touchable->GetVolume(fBasePairDepth)->GetCopyNo(); // This is the bp index (e.g. 184)
-			G4int parentDepth = touchable->GetVolume(fBasePairDepth+1)->GetCopyNo(); // Always seems to be zero. May change with multiple DNA fibres -> i.e. index of DNA fibre?
-
 			//--------------------------------------------------------------------------------------
 			// Record energy deposited in fGenVEdepStrand (3-nested map) for either strand 1 or 2,
 			// adding to existing deposits in that nucleotide (if any)
@@ -374,47 +400,23 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 			// Second index specifies someting to do with variance reduction / track splitting
 			// Third index specifies the bp index
 			//--------------------------------------------------------------------------------------
-			// Parameters needed to handle variance reduction track splitting, if used or not
-			G4int index = 1;
-			if (fNbOfAlgo > 1) {
-				TsTrackInformation* trackInformation = (TsTrackInformation*)aStep->GetTrack()->GetUserInformation();
-				index = trackInformation->GetSplitTrackID();
-			}
-
-			// If doing variance reduction 
-			// NEED TO UPDATE THIS TO MATCH NEW CODE FOR WHEN NOT DOING VARIANCE REDUCTION
-			if (index > 2) {
-				if ( num_strand == 0 ){
-					fGenVEdepStrand1Backbone[parentDepth][index-3][num_nucleotide] += edep;
-				}
-				else{
-					fGenVEdepStrand2Backbone[parentDepth][index-3][num_nucleotide] += edep;
-				}
-			} 
 			// Not doing variance reduction
-			else {
-				if ( num_strand == 0 ){
-					for ( int i = 0; i < fNbOfAlgo; i++ ){
-						if (num_res == 0 || num_res == 1){
-							fGenVEdepStrand1Backbone[parentDepth][i][num_nucleotide] += edep;
-						}
-						else if (num_res == 2) {
-							fGenVEdepStrand1Base[parentDepth][i][num_nucleotide] += edep;
-						}
-					}
+			if ( num_strand == 0 ){
+				if (num_res == 0 || num_res == 1){
+					fGenVEdepStrand1Backbone[fVoxelID][fFiberID][num_nucleotide] += edep;
 				}
-				else{
-					for ( int i = 0; i < fNbOfAlgo; i++ ){
-						if (num_res == 0 || num_res == 1){
-							fGenVEdepStrand2Backbone[parentDepth][i][num_nucleotide] += edep;
-						}
-						else if (num_res == 2) {
-							fGenVEdepStrand2Base[parentDepth][i][num_nucleotide] += edep;
-						}
-					}
+				else if (num_res == 2) {
+					fGenVEdepStrand1Base[fVoxelID][fFiberID][num_nucleotide] += edep;
 				}
 			}
-			
+			else{
+				if (num_res == 0 || num_res == 1){
+					fGenVEdepStrand2Backbone[fVoxelID][fFiberID][num_nucleotide] += edep;
+				}
+				else if (num_res == 2) {
+					fGenVEdepStrand2Base[fVoxelID][fFiberID][num_nucleotide] += edep;
+				}
+			}			
 			return true;
 		}
 
@@ -442,7 +444,7 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 	}
 
 	if (fUseDoseThreshold && fTotalEdep > fEnergyThreshold) {
-		std::cout << "Aborting worker #" << G4Threading::G4GetThreadId() << std::endl;
+		G4cout << "Aborting worker #" << G4Threading::G4GetThreadId() << G4endl;
 		G4RunManager::GetRunManager()->AbortRun(true);
 	}
 }
@@ -451,13 +453,24 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 // 
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::UserHookForEndOfRun() {
-	fEventID = GetEventID();
+	// fEventID = GetEventID();
 	fThreadID = G4Threading::G4GetThreadId();
+
+	G4cout << "******************************************************************" << G4endl;
+	for (G4int i =0; i < fNumFibers; i++) {
+		G4cout << "Fibre " << i << ": " << fibEnergy[i]/keV << G4endl;
+	}
+	G4cout << "******************************************************************" << G4endl;
+	for (G4int i =0; i < 27; i++) {
+		G4cout << "Voxel " << i << ": " << voxEnergy[i]/keV << G4endl;
+	}
+	G4cout << "******************************************************************" << G4endl;
 
 	OutputRunSummaryToFile();
 	G4cout << "Run summary has been written to: " << fFileRunSummary << G4endl;
 
 	if (!fRecordDamagePerEvent) {
+		fEventID = fAggregateValueIndicator;
 		RecordDamage();
 		OutputComplexDSBToFile();
 		OutputNonDSBClusterToFile();
@@ -507,7 +520,7 @@ void ScoreClusteredDNADamage::OutputComplexDSBToFile() {
 	}
 
 	// Record data
-	for (G4int i = 0; i < fTotalComplexDSB; i++) {
+	for (G4int i = 0; i < fComplexDSBSizes.size(); i++) {
 		outFile << fComplexDSBSizes[i] << fDelimiter;
 		outFile << fComplexDSBNumDamage[i] << fDelimiter;
 		outFile << fComplexDSBNumSSB[i] << fDelimiter;
@@ -533,7 +546,7 @@ void ScoreClusteredDNADamage::OutputNonDSBClusterToFile() {
 	}
 
 	// Record data
-	for (G4int i = 0; i < fTotalNonDSBCluster; i++) {
+	for (G4int i = 0; i < fNonDSBClusterSizes.size(); i++) {
 		outFile << fNonDSBClusterSizes[i] << fDelimiter;
 		outFile << fNonDSBClusterNumDamage[i] << fDelimiter;
 		outFile << fNonDSBClusterNumSSB[i] << fDelimiter;
@@ -555,6 +568,12 @@ void ScoreClusteredDNADamage::AbsorbResultsFromWorkerScorer(TsVScorer* workerSco
 	ScoreClusteredDNADamage* myWorkerScorer = dynamic_cast<ScoreClusteredDNADamage*>(workerScorer);
 
 	// Absorb various worker thread data
+	for (G4int i = 0; i < 20; i++) {
+		fibEnergy[i] +=myWorkerScorer->fibEnergy[i];
+	}
+	for (G4int i = 0; i < 27; i++) {
+		voxEnergy[i] +=myWorkerScorer->voxEnergy[i];
+	}
 	fTotalEdep += myWorkerScorer->fTotalEdep;
 	fNumEvents += myWorkerScorer->fNumEvents;
 
@@ -575,18 +594,63 @@ void ScoreClusteredDNADamage::AbsorbMapFromWorkerScorer(
 	std::map<G4int,std::map<G4int,std::map<G4int, G4double>>> &masterMap,
 	std::map<G4int,std::map<G4int,std::map<G4int, G4double>>> &workerMap) 
 {
-	std::map<G4int, G4double>::iterator itWorker = workerMap[0][0].begin();
-	G4int indexBP;
-	G4double eDep;
+	// std::map<G4int, G4double>::iterator itWorker = workerMap[0].begin();
+	// G4int indexBP;
+	// G4double eDep;
 
-	while (itWorker != workerMap[0][0].end()) {
-		indexBP = itWorker->first;
-		eDep = itWorker->second;
+	// while (itWorker != workerMap[0].end()) {
+	// 	indexBP = itWorker->first;
+	// 	eDep = itWorker->second;
 
-		masterMap[0][0][indexBP] += eDep;
-		itWorker++; // use erase instead to free up memory
-		// itWorker = workerMap[0][0].erase(itWorker);
+	// 	masterMap[0][indexBP] += eDep;
+	// 	itWorker++; // use erase instead to free up memory
+	// 	// itWorker = workerMap[0][0].erase(itWorker);
+	// }
+
+	// Loop over all voxels in nucleus
+	std::map<G4int,std::map<G4int,std::map<G4int, G4double>>>::iterator itVoxel = workerMap.begin();
+	while (itVoxel != workerMap.end()) {
+		G4int indexVoxel = itVoxel->first;
+		std::map<G4int,std::map<G4int, G4double>> workerMapVoxel = itVoxel->second;
+
+		// Loop over all fibers in voxel
+		std::map<G4int,std::map<G4int, G4double>>::iterator itFiber = workerMapVoxel.begin();
+		while (itFiber != workerMapVoxel.end()) {
+			G4int indexFiber = itFiber->first;
+			std::map<G4int, G4double> workerMapFiber = itFiber->second;
+
+			// Loop over all base pairs fiber
+			std::map<G4int, G4double>::iterator itBP = workerMapFiber.begin();
+			while (itBP != workerMapFiber.end()) {
+				G4int indexBP = itBP->first;
+				G4double eDep = itBP->second;
+
+				// Increment master thread energy map
+				masterMap[indexVoxel][indexFiber][indexBP] += eDep;
+				itBP++;
+			}
+			itFiber++;
+		}
+		itVoxel++;
 	}
+
+	// std::map<G4int,std::map<G4int, G4double>>::iterator itFiber = workerMap.begin();
+	// while (itFiber != workerMap.end()) {
+	// 	G4int indexFiber = itFiber->first;
+	// 	std::map<G4int, G4double> workerMapFiber = itFiber->second;
+
+	// 	std::map<G4int, G4double>::iterator itBP = workerMapFiber.begin();
+
+	// 	while (itBP != workerMapFiber.end()) {
+	// 		G4int indexBP = itBP->first;
+	// 		G4double eDep = itBP->second;
+
+	// 		masterMap[indexFiber][indexBP] += eDep;
+	// 		itBP++; // use erase instead to free up memory
+	// 		// itWorker = workerMap[0][0].erase(itWorker);
+	// 	}
+	// 	itFiber++;
+	// }
 }
 
 
@@ -599,66 +663,68 @@ void ScoreClusteredDNADamage::RecordDamage() {
 
 	// Include if want to print out map of energy depositions to validate algorithm is functioning
 	// properly.
-	// std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand1Backbone_COPY = fGenVEdepStrand1Backbone;
-	// std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand2Backbone_COPY = fGenVEdepStrand2Backbone;
-	// std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand1Base_COPY = fGenVEdepStrand1Base;
-	// std::map<G4int, std::map<G4int, std::map<G4int, G4double> > > fGenVEdepStrand2Base_COPY = fGenVEdepStrand2Base;
+	// std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fGenVEdepStrand1Backbone_COPY = fGenVEdepStrand1Backbone;
+	// std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fGenVEdepStrand2Backbone_COPY = fGenVEdepStrand2Backbone;
+	// std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fGenVEdepStrand1Base_COPY = fGenVEdepStrand1Base;
+	// std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fGenVEdepStrand2Base_COPY = fGenVEdepStrand2Base;
 
-	// Iterate over all DNA fibres 
-	for ( auto& energyAtStrands : fGenVEdepStrand1Backbone ) {
+	// Iterate over all voxels
+	G4int numVoxels = pow(fNumVoxelsPerSide,3);
+	for (G4int iVoxel = 0; iVoxel < numVoxels; iVoxel++) {
+		fVoxelID = iVoxel; 
+		// Iterate over all DNA fibres 
+		for (G4int iFiber = 0; iFiber < fNumFibers; iFiber++) {
+			fFiberID = iFiber;
 
-		G4int parentDepth = energyAtStrands.first;
+			// Unsure why this necessary. Perhaps is faster to do this rather than repeatedly indexing
+			// the extra layer of mappng associated with fGenVEdepStrand1Backbone/2
+			fVEdepStrand1Backbone = fGenVEdepStrand1Backbone[iVoxel][iFiber];
+			fVEdepStrand2Backbone = fGenVEdepStrand2Backbone[iVoxel][iFiber];
+			fVEdepStrand1Base = fGenVEdepStrand1Base[iVoxel][iFiber];
+			fVEdepStrand2Base = fGenVEdepStrand2Base[iVoxel][iFiber];
 
-		// Unsure why this necessary. Perhaps is faster to do this rather than repeatedly indexing
-		// the extra layer of mappng associated with fGenVEdepStrand1Backbone/2
-		fVEdepStrand1Backbone = fGenVEdepStrand1Backbone[parentDepth];
-		fVEdepStrand2Backbone = fGenVEdepStrand2Backbone[parentDepth];
-		fVEdepStrand1Base = fGenVEdepStrand1Base[parentDepth];
-		fVEdepStrand2Base = fGenVEdepStrand2Base[parentDepth];
-		fDNAParent = parentDepth;
-
-		// Iterate over track splitting (only 1 iteration if no splitting), compute the # of 
-		// various types of DNA damage, and fill the ntuple scorer accordingly
-		for ( int i = 0; i < fNbOfAlgo; i++ ) {
 			fIndicesSSB1 = RecordSimpleDamage(fThresEdepForSSB,fVEdepStrand1Backbone);
 			fIndicesSSB2 = RecordSimpleDamage(fThresEdepForSSB,fVEdepStrand2Backbone);
 			fIndicesBD1 = RecordSimpleDamage(fThresEdepForBD,fVEdepStrand1Base);
 			fIndicesBD2 = RecordSimpleDamage(fThresEdepForBD,fVEdepStrand2Base);
 
-			// fIndicesDSB = RecordDSB();
 			fIndicesDSB1D = RecordDSB1D();
 
 			fTotalSSB += fIndicesSSB1.size() + fIndicesSSB2.size();
 			fTotalBD += fIndicesBD1.size() + fIndicesBD2.size();
-			// fTotalDSB += fIndicesDSB.size();
-			// fTotalDSB += fIndicesDSB1D.size()/2;
 			fTotalDSB += fIndicesDSB1D.size(); // Note is currently 2x number of DSB. Division by 2 is performed after clustering
 
 			fIndicesSimple = CombineSimpleDamage();
 			RecordClusteredDamage();
 
-			if (fTotalSSB > 0 || fTotalBD > 0 || fTotalDSB > 0 || fTotalComplexDSB > 0 || fTotalNonDSBCluster > 0) {
-				// If want to output results to command line
-				// PrintDNADamageToConsole();
-				fNtuple->Fill();
-			}
-		}
+			if (fRecordDamagePerFiber) {
+				fNtuple->Fill(); // Move this to outside loop if aggregating over all fibres
 
-		// Include if want to print out map of energy depositions to validate algorithm is
-		// functioning properly.
-		// if (fSSB > 0 && fDSB > 0) {
-		// if (fEventID == 57) {
-			// G4cout << "#################################################################################################################################" << G4endl;
-			// G4cout << "Event #" << fEventID << G4endl;
-			// int colwidth = 15;
-			// for (G4int i = 0; i < 1200; i++) {
-			// 	G4cout << std::left << "i = " << std::setw(colwidth) << i << " | " << std::setw(colwidth) << fGenVEdepStrand1Backbone_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand1Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Backbone_COPY[0][0][i]/eV << G4endl;
-			// 	// if (fGenVEdepStrand1Backbone_COPY[0][0][i]/eV > 0 || fGenVEdepStrand1Base_COPY[0][0][i]/eV > 0 || fGenVEdepStrand2Base_COPY[0][0][i]/eV > 0 || fGenVEdepStrand2Backbone_COPY[0][0][i]/eV > 0) {
-			// 	// 	G4cout << std::left << "i = " << i << " | " << std::setw(colwidth) << fGenVEdepStrand1Backbone_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand1Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Backbone_COPY[0][0][i]/eV << G4endl;
-			// 	// }
+				// Reset variables before next fibre (not aggregating over all fibres)
+				ResetDamageCounterVariables();
+			}
+
+			// Include if want to print out map of energy depositions to validate algorithm is
+			// functioning properly.
+			// if (fSSB > 0 && fDSB > 0) {
+			// if (fEventID == 57) {
+				// G4cout << "#################################################################################################################################" << G4endl;
+				// G4cout << "Event #" << fEventID << G4endl;
+				// int colwidth = 15;
+				// for (G4int i = 0; i < 1200; i++) {
+				// 	G4cout << std::left << "i = " << std::setw(colwidth) << i << " | " << std::setw(colwidth) << fGenVEdepStrand1Backbone_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand1Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Backbone_COPY[0][0][i]/eV << G4endl;
+				// 	// if (fGenVEdepStrand1Backbone_COPY[0][0][i]/eV > 0 || fGenVEdepStrand1Base_COPY[0][0][i]/eV > 0 || fGenVEdepStrand2Base_COPY[0][0][i]/eV > 0 || fGenVEdepStrand2Backbone_COPY[0][0][i]/eV > 0) {
+				// 	// 	G4cout << std::left << "i = " << i << " | " << std::setw(colwidth) << fGenVEdepStrand1Backbone_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand1Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Base_COPY[0][0][i]/eV << std::setw(colwidth) << fGenVEdepStrand2Backbone_COPY[0][0][i]/eV << G4endl;
+				// 	// }
+				// }
+				// G4cout << "#################################################################################################################################" << G4endl;
 			// }
-			// G4cout << "#################################################################################################################################" << G4endl;
-		// }
+		}
+	}
+
+	if (!fRecordDamagePerFiber) {
+		fFiberID = fAggregateValueIndicator;
+		fNtuple->Fill(); // Move this to outside loop if aggregating over all fibres
 	}
 }
 
@@ -673,11 +739,7 @@ void ScoreClusteredDNADamage::ResetMemberVariables() {
 	fVEdepStrand1Base.erase(fVEdepStrand1Base.begin(), fVEdepStrand1Base.end());
 	fVEdepStrand2Base.erase(fVEdepStrand2Base.begin(), fVEdepStrand2Base.end());
 
-	fTotalSSB = 0;
-	fTotalBD = 0;
-	fTotalDSB = 0;
-	fTotalComplexDSB = 0;
-	fTotalNonDSBCluster = 0;
+	ResetDamageCounterVariables();
 
 	fComplexDSBSizes.clear();
 	fComplexDSBNumSSB.clear();
@@ -698,11 +760,23 @@ void ScoreClusteredDNADamage::ResetMemberVariables() {
 
 
 //--------------------------------------------------------------------------------------------------
+// This method resets variables that count the yields for various types of DNA damage.
+//--------------------------------------------------------------------------------------------------
+void ScoreClusteredDNADamage::ResetDamageCounterVariables() {
+	fTotalSSB = 0;
+	fTotalBD = 0;
+	fTotalDSB = 0;
+	fTotalComplexDSB = 0;
+	fTotalNonDSBCluster = 0;
+}
+
+
+//--------------------------------------------------------------------------------------------------
 // Record bp indices of one type of simple DNA damage (SSB or BD) in a single strand to a 1D vector.
 // This method deletes the content in the provided map.
 //--------------------------------------------------------------------------------------------------
 std::vector<G4int> ScoreClusteredDNADamage::RecordSimpleDamage(G4double ThreshEDep,
-	std::map<G4int,std::map<G4int,G4double>> mapEDep)
+	std::map<G4int,G4double> mapEDep)
 {
 	std::vector<G4int> indicesDamage;
 
@@ -712,15 +786,15 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordSimpleDamage(G4double ThreshED
 	// Loop through map of energy depositions. Add indices ofenergy depositions over the provided
 	// threshold to a vector, which is returned. The entries in the map are deleted as they are
 	// processed
-	while ( !mapEDep[0].empty() )
+	while ( !mapEDep.empty() )
 	{
-		indexBP = mapEDep[0].begin()->first;
-		eDep = mapEDep[0].begin()->second;
+		indexBP = mapEDep.begin()->first;
+		eDep = mapEDep.begin()->second;
 
 		if (eDep >= ThreshEDep) {
 			indicesDamage.push_back(indexBP);
 		}
-		mapEDep[0].erase(mapEDep[0].begin());
+		mapEDep.erase(mapEDep.begin());
 	}
 
 	return indicesDamage;

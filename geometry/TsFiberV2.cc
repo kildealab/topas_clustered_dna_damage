@@ -206,7 +206,7 @@ G4VPhysicalVolume* TsFiberV2::Construct()
     // Report total time required to generate geometry
     auto finish_total = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_total = finish_total-start_total;
-    G4cout << "Total time to generate geometry = " << elapsed_total.count() << " s" << G4endl;  
+    // G4cout << "Total time to generate geometry = " << elapsed_total.count() << " s" << G4endl;  
     
 	return fEnvelopePhys;
 }
@@ -441,7 +441,8 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
 
             // Phosphate 1
             //--------------------------------------------------------------------------------------
-            G4String phys_name = "p_1_" + bp_index_string;
+            // G4String phys_name = "p_1_" + bp_index_string;
+            G4String phys_name = "p_1_";
             G4VPhysicalVolume* sTMP1;
             if (fUseG4Volumes){
                 sTMP1 = new G4PVPlacement(rotCuts,posSugarTMP1,volMap->at("sugarTMP1")[j],
@@ -459,7 +460,8 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
 
             // Sugar 1
             //--------------------------------------------------------------------------------------
-            phys_name = "s_1_" + bp_index_string;
+            // phys_name = "s_1_" + bp_index_string;
+            phys_name = "s_1_";
             G4VPhysicalVolume* sTHF1;
             if (fUseG4Volumes){
                 sTHF1 = new G4PVPlacement(rotCuts,posSugarTHF1,volMap->at("sugarTHF1")[j],
@@ -477,7 +479,8 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
 
             // Base 1
             //--------------------------------------------------------------------------------------
-            phys_name = "b_1_" + bp_index_string;
+            // phys_name = "b_1_" + bp_index_string;
+            phys_name = "b_1_";
             G4VPhysicalVolume* base1;
             if (fUseG4Volumes){
                 base1 = new G4PVPlacement(rotCuts,posBase1,volMap->at("base1")[j],phys_name,
@@ -495,7 +498,8 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
 
             // Base 2
             //--------------------------------------------------------------------------------------
-            phys_name = "b_2_" + bp_index_string;
+            // phys_name = "b_2_" + bp_index_string;
+            phys_name = "b_2_";
             G4VPhysicalVolume* base2;
             if (fUseG4Volumes){
                 base2 = new G4PVPlacement(rotCuts,posBase2,volMap->at("base2")[j],phys_name,
@@ -513,7 +517,8 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
 
             // Sugar 2
             //--------------------------------------------------------------------------------------
-            phys_name = "s_2_" + bp_index_string;
+            // phys_name = "s_2_" + bp_index_string;
+            phys_name = "s_2_";
             G4VPhysicalVolume* sTHF2;
             if (fUseG4Volumes){
                 sTHF2 = new G4PVPlacement(rotCuts,posSugarTHF2,volMap->at("sugarTHF2")[j],
@@ -531,7 +536,8 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
 
             // Phosphate 2
             //--------------------------------------------------------------------------------------
-            phys_name = "p_2_" + bp_index_string;
+            // phys_name = "p_2_" + bp_index_string;
+            phys_name = "p_2_";
             G4VPhysicalVolume* sTMP2;
             if (fUseG4Volumes){
                 sTMP2 = new G4PVPlacement(rotCuts,posSugarTMP2,volMap->at("sugarTMP2")[j],
@@ -627,7 +633,7 @@ G4LogicalVolume* TsFiberV2::BuildLogicFiber(std::vector<std::vector<DNAPlacement
         // Report time to generate this nucleosome
         auto finish = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = finish-start;
-        G4cout << "Time to nucleosome #" << i << " = " << elapsed.count() << " s" << G4endl;  
+        // G4cout << "Time to nucleosome #" << i << " = " << elapsed.count() << " s" << G4endl;  
     }
 
     // logicFiber contains the placements of the histones and the water volumes, which in turn
