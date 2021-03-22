@@ -59,8 +59,8 @@ private:
     void PrintDNADamageToConsole();
     
 private:
-    G4double fibEnergy[20];
-    G4double voxEnergy[27];
+    // G4double fibEnergy[20];
+    // G4double voxEnergy[27];
     // G4Material* fStrand1Material;
     // G4Material* fStrand2Material;
     G4Material* fDNAMaterial;
@@ -75,6 +75,8 @@ private:
     G4double fThresEdepForBD;
     G4int fThresDistForDSB;
     G4int fThresDistForCluster;
+
+    G4bool fScoreClusters;
 
     G4bool fRecordDamagePerEvent;
     G4bool fRecordDamagePerFiber;

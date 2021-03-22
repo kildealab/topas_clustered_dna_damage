@@ -47,19 +47,15 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 {
 	SetUnit("");
 
-	for (G4int i = 0; i < 20; i++) {
-		fibEnergy[i] = 0.;
-	}
-	for (G4int i = 0; i < 27; i++) {
-		voxEnergy[i] = 0.;
-	}
+	// For testing
+	// for (G4int i = 0; i < 20; i++) {
+	// 	fibEnergy[i] = 0.;
+	// }
+	// for (G4int i = 0; i < 27; i++) {
+	// 	voxEnergy[i] = 0.;
+	// }
 	
-	// Default parameters
-	fThresDistForDSB = 10;
-	fThresEdepForSSB = 17.5 * eV;
-	fThresEdepForBD = 17.5 * eV;
-	fThresDistForCluster = 40;
-
+	// Initialize parameters
 	fTotalSSB = 0;
 	fTotalBD = 0;
 	fTotalDSB = 0;
@@ -76,13 +72,33 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 
 	// fNbOfAlgo = 1; // Used with variance reduction
 	
+	// Scoring parameters
 	if ( fPm->ParameterExists(GetFullParmName("BasePairDistanceForDefiningDSB")) )
 		fThresDistForDSB = fPm->GetIntegerParameter(GetFullParmName("BasePairDistanceForDefiningDSB"));
+	else
+		fThresDistForDSB = 10;
+
 	if ( fPm->ParameterExists(GetFullParmName("EnergyThresholdForHavingSSB")) )
 		fThresEdepForSSB = fPm->GetDoubleParameter(GetFullParmName("EnergyThresholdForHavingSSB"), "Energy");
+	else
+		fThresEdepForSSB = 17.5 * eV;
+
 	if ( fPm->ParameterExists(GetFullParmName("EnergyThresholdForHavingBD")) )
-		fThresEdepForSSB = fPm->GetDoubleParameter(GetFullParmName("EnergyThresholdToInduceBD"), "Energy");
+		fThresEdepForBD = fPm->GetDoubleParameter(GetFullParmName("EnergyThresholdForHavingBD"), "Energy");
+	else
+		fThresEdepForBD = 17.5 * eV;
+
+	if ( fPm->ParameterExists(GetFullParmName("BasePairDistanceForDefiningCluster")) )
+		fThresDistForCluster = fPm->GetIntegerParameter(GetFullParmName("BasePairDistanceForDefiningCluster"));
+	else
+		fThresDistForCluster = 40;
 	
+	// Score damage clusters or not
+	if ( fPm->ParameterExists(GetFullParmName("ScoreClusters")))
+		fScoreClusters = fPm->GetBooleanParameter(GetFullParmName("ScoreClusters"));
+	else 
+		fScoreClusters = true;
+
 	// Unsure what this is
 	fBasePairDepth = 0;
 	if ( fPm->ParameterExists(GetFullParmName("BasePairPositionAtGeometricHierarchy")))
@@ -223,9 +239,11 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fNtuple->RegisterColumnI(&fTotalSSB, "Single strand breaks"); // Number of SSB caused by this primary particle
 	fNtuple->RegisterColumnI(&fTotalDSB, "Double strand breaks"); // Number of simple DSB caused by this primary particle
 	fNtuple->RegisterColumnI(&fTotalBD, "Base damages"); // Number of BD caused by this primary particle
-	fNtuple->RegisterColumnI(&fTotalComplexDSB, "Complex DSBs"); // Number of Complex DSB caused by this primary particle
-	fNtuple->RegisterColumnI(&fTotalNonDSBCluster, "Non-DSB clusters"); // Number of Non-DSB Clusters caused by this primary particle
-	
+	if (fScoreClusters) {
+		fNtuple->RegisterColumnI(&fTotalComplexDSB, "Complex DSBs"); // Number of Complex DSB caused by this primary particle
+		fNtuple->RegisterColumnI(&fTotalNonDSBCluster, "Non-DSB clusters"); // Number of Non-DSB Clusters caused by this primary particle
+	}
+
 	// Unsure what this does
 	// From the docs: disable automatic creation & filling of output, leaving this work entirely to
 	// your scorer.
@@ -248,7 +266,7 @@ ScoreClusteredDNADamage::~ScoreClusteredDNADamage() {
 G4double ScoreClusteredDNADamage::CalculateComponentVolume() {
 	G4double componentVolume;
 
-	componentVolume = pow(fVoxelSideLength*fNumVoxelsPerSide,3);
+	componentVolume = pow(2*fVoxelSideLength*fNumVoxelsPerSide,3);
 
 	// if (fComponentShape == "box") {
 	// 	componentVolume = fComponentDimensions[0]*fComponentDimensions[1]*fComponentDimensions[2];
@@ -339,31 +357,12 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	// If this hit deposits energy: 
 	//----------------------------------------------------------------------------------------------
 	if (edep > 0) {
+		// G4Touchable provides access to parent volumes, etc.
 		G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
 
-		// G4cout << "----------------------------------------------------------------------" << G4endl;
-		// G4cout << "This volume: " << touchable->GetVolume()->GetName() << G4endl;
-		// G4cout << "Copy number (touch): " << touchable->GetCopyNumber() << G4endl;
-		// G4cout << "Copy number (direct): " << aStep->GetPreStepPoint()->GetPhysicalVolume()->GetCopyNo() << G4endl;
-		// G4cout << G4endl;
-		// G4cout << "Parent1 volume: " << touchable->GetVolume(1)->GetName() << G4endl;
-		// G4cout << "Parent1 copy number: " << touchable->GetCopyNumber(1) << G4endl;
-		// G4cout << G4endl;
-		// G4cout << "Parent2 volume: " << touchable->GetVolume(2)->GetName() << G4endl;
-		// G4cout << "Parent2 copy number: " << touchable->GetCopyNumber(2) << G4endl;
-		// G4cout << "Parent2 replica number: " << touchable->GetReplicaNumber(2) << G4endl;
-		// G4cout << G4endl;
-		// G4cout << "Parent3 volume: " << touchable->GetVolume(3)->GetName() << G4endl;
-		// G4cout << "Parent3 copy number: " << touchable->GetCopyNumber(3) << G4endl;
-		// G4cout << "Parent3 replica number: " << touchable->GetReplicaNumber(3) << G4endl;
-		// G4cout << G4endl;
-		// G4cout << "Parent4 volume: " << touchable->GetVolume(4)->GetName() << G4endl;
-		// G4cout << "Parent4 copy number: " << touchable->GetCopyNumber(4) << G4endl;
-		// G4cout << "Parent4 replica number: " << touchable->GetReplicaNumber(4) << G4endl;
-		// G4cout << "----------------------------------------------------------------------" << G4endl;
 		// Determine unique fiber ID number using copy ID of parent
 		fFiberID = touchable->GetCopyNumber(fParentIndexFiber);
-		fibEnergy[fFiberID] += edep;
+		// fibEnergy[fFiberID] += edep;
 
 		// Determine unique voxel ID number using replica ID of parent volumes
 		if (fBuildNucleus) {
@@ -372,7 +371,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 			G4int voxIDY = touchable->GetReplicaNumber(fParentIndexVoxelY);
 			fVoxelID = voxIDZ + (fNumVoxelsPerSide*voxIDX) + (fNumVoxelsPerSide*fNumVoxelsPerSide*voxIDY);
 		}
-		voxEnergy[fVoxelID] += edep;
+		// voxEnergy[fVoxelID] += edep;
 
 		G4StepPoint* preStep = aStep->GetPreStepPoint();
 
@@ -438,13 +437,15 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 
 	if (fRecordDamagePerEvent) {
 		RecordDamage();
-		OutputComplexDSBToFile();
-		OutputNonDSBClusterToFile();
+		if (fScoreClusters) {
+			OutputComplexDSBToFile();
+			OutputNonDSBClusterToFile();
+		}
 		ResetMemberVariables();
 	}
 
 	if (fUseDoseThreshold && fTotalEdep > fEnergyThreshold) {
-		G4cout << "Aborting worker #" << G4Threading::G4GetThreadId() << G4endl;
+		G4cout << "Aborting worker #" << G4Threading::G4GetThreadId() << " because dose threshold has been met" << G4endl;
 		G4RunManager::GetRunManager()->AbortRun(true);
 	}
 }
@@ -456,15 +457,15 @@ void ScoreClusteredDNADamage::UserHookForEndOfRun() {
 	// fEventID = GetEventID();
 	fThreadID = G4Threading::G4GetThreadId();
 
-	G4cout << "******************************************************************" << G4endl;
-	for (G4int i =0; i < fNumFibers; i++) {
-		G4cout << "Fibre " << i << ": " << fibEnergy[i]/keV << G4endl;
-	}
-	G4cout << "******************************************************************" << G4endl;
-	for (G4int i =0; i < 27; i++) {
-		G4cout << "Voxel " << i << ": " << voxEnergy[i]/keV << G4endl;
-	}
-	G4cout << "******************************************************************" << G4endl;
+	// G4cout << "******************************************************************" << G4endl;
+	// for (G4int i =0; i < fNumFibers; i++) {
+	// 	G4cout << "Fibre " << i << ": " << fibEnergy[i]/keV << G4endl;
+	// }
+	// G4cout << "******************************************************************" << G4endl;
+	// for (G4int i =0; i < 27; i++) {
+	// 	G4cout << "Voxel " << i << ": " << voxEnergy[i]/keV << G4endl;
+	// }
+	// G4cout << "******************************************************************" << G4endl;
 
 	OutputRunSummaryToFile();
 	G4cout << "Run summary has been written to: " << fFileRunSummary << G4endl;
@@ -472,12 +473,16 @@ void ScoreClusteredDNADamage::UserHookForEndOfRun() {
 	if (!fRecordDamagePerEvent) {
 		fEventID = fAggregateValueIndicator;
 		RecordDamage();
-		OutputComplexDSBToFile();
-		OutputNonDSBClusterToFile();
+		if (fScoreClusters) {
+			OutputComplexDSBToFile();
+			OutputNonDSBClusterToFile();
+		}
 	}
 
-	G4cout << "Complex DSB details have been written to: " << fFileComplexDSB << G4endl;
-	G4cout << "Non-DSB cluster details have been written to: " << fFileNonDSBCluster << G4endl;
+	if (fScoreClusters) {
+		G4cout << "Complex DSB details have been written to: " << fFileComplexDSB << G4endl;
+		G4cout << "Non-DSB cluster details have been written to: " << fFileNonDSBCluster << G4endl;
+	}
 }
 
 
@@ -568,14 +573,14 @@ void ScoreClusteredDNADamage::AbsorbResultsFromWorkerScorer(TsVScorer* workerSco
 	ScoreClusteredDNADamage* myWorkerScorer = dynamic_cast<ScoreClusteredDNADamage*>(workerScorer);
 
 	// Absorb various worker thread data
-	for (G4int i = 0; i < 20; i++) {
-		fibEnergy[i] +=myWorkerScorer->fibEnergy[i];
-	}
-	for (G4int i = 0; i < 27; i++) {
-		voxEnergy[i] +=myWorkerScorer->voxEnergy[i];
-	}
 	fTotalEdep += myWorkerScorer->fTotalEdep;
 	fNumEvents += myWorkerScorer->fNumEvents;
+	// for (G4int i = 0; i < 20; i++) {
+	// 	fibEnergy[i] +=myWorkerScorer->fibEnergy[i];
+	// }
+	// for (G4int i = 0; i < 27; i++) {
+	// 	voxEnergy[i] +=myWorkerScorer->voxEnergy[i];
+	// }
 
     // If recording damage over the whole run, absorb the energy deposition maps from this worker
     if (!fRecordDamagePerEvent) {
@@ -694,8 +699,13 @@ void ScoreClusteredDNADamage::RecordDamage() {
 			fTotalBD += fIndicesBD1.size() + fIndicesBD2.size();
 			fTotalDSB += fIndicesDSB1D.size(); // Note is currently 2x number of DSB. Division by 2 is performed after clustering
 
-			fIndicesSimple = CombineSimpleDamage();
-			RecordClusteredDamage();
+			if (fScoreClusters) {
+				fIndicesSimple = CombineSimpleDamage();
+				RecordClusteredDamage();
+			}
+			else {
+				fTotalDSB = fTotalDSB/2;
+			}
 
 			if (fRecordDamagePerFiber) {
 				fNtuple->Fill(); // Move this to outside loop if aggregating over all fibres
