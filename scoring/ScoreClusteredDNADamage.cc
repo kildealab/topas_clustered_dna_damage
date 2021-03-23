@@ -703,11 +703,9 @@ void ScoreClusteredDNADamage::RecordDamage() {
 				fIndicesSimple = CombineSimpleDamage();
 				RecordClusteredDamage();
 			}
-			else {
-				fTotalDSB = fTotalDSB/2;
-			}
 
 			if (fRecordDamagePerFiber) {
+				fTotalDSB = fTotalDSB/2;
 				fNtuple->Fill(); // Move this to outside loop if aggregating over all fibres
 
 				// Reset variables before next fibre (not aggregating over all fibres)
@@ -733,6 +731,7 @@ void ScoreClusteredDNADamage::RecordDamage() {
 	}
 
 	if (!fRecordDamagePerFiber) {
+		fTotalDSB = fTotalDSB/2;
 		fFiberID = fAggregateValueIndicator;
 		fNtuple->Fill(); // Move this to outside loop if aggregating over all fibres
 	}
@@ -915,9 +914,6 @@ void ScoreClusteredDNADamage::RecordClusteredDamage()
 		buildingCluster = false;
 		RecordCluster(cluster);
 	}
-
-	// Finally, divide number of DSB by two
-	fTotalDSB = fTotalDSB/2;
 }
 
 
