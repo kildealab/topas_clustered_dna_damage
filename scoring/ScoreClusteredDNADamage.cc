@@ -198,6 +198,14 @@ void ScoreClusteredDNADamage::ResolveParams() {
 		fFileNonDSBCluster = "output_non_dsb_cluster_specs";
 
 	//----------------------------------------------------------------------------------------------
+	// Specify whether to output headers for data files or not
+	//----------------------------------------------------------------------------------------------
+	if ( fPm->ParameterExists(GetFullParmName("OutputHeaders")))
+		fOutputHeaders = fPm->GetBooleanParameter(GetFullParmName("OutputHeaders"));
+	else 
+		fOutputHeaders = true;
+
+	//----------------------------------------------------------------------------------------------
 	// Parameters to handle stopping simulation & scoring when dose threshold is met
 	//----------------------------------------------------------------------------------------------
 	if (fPm->ParameterExists(GetFullParmName("UseDoseThreshold")))
@@ -260,22 +268,26 @@ void ScoreClusteredDNADamage::ClearOutputFiles() {
 	std::ofstream fileToClear;
 
 	// Run summary
-	fileToClear.open(fFileRunSummary+fOutHeaderExtension, std::ofstream::trunc);
-	fileToClear.close();
 	fileToClear.open(fFileRunSummary+fOutFileExtension, std::ofstream::trunc);
 	fileToClear.close();
 
 	// Complex DSB
-	fileToClear.open(fFileComplexDSB+fOutHeaderExtension, std::ofstream::trunc);
-	fileToClear.close();
 	fileToClear.open(fFileComplexDSB+fOutFileExtension, std::ofstream::trunc);
 	fileToClear.close();
 
 	// Non-DSB clusters
-	fileToClear.open(fFileNonDSBCluster+fOutHeaderExtension, std::ofstream::trunc);
-	fileToClear.close();
 	fileToClear.open(fFileNonDSBCluster+fOutFileExtension, std::ofstream::trunc);
 	fileToClear.close();
+
+	// Headers
+	if (fOutputHeaders) {
+		fileToClear.open(fFileRunSummary+fOutHeaderExtension, std::ofstream::trunc);
+		fileToClear.close();
+		fileToClear.open(fFileComplexDSB+fOutHeaderExtension, std::ofstream::trunc);
+		fileToClear.close();
+		fileToClear.open(fFileNonDSBCluster+fOutHeaderExtension, std::ofstream::trunc);
+		fileToClear.close();
+	}
 }
 
 
@@ -484,22 +496,28 @@ void ScoreClusteredDNADamage::OutputRunSummaryToFile() {
 	//----------------------------------------------------------------------------------------------
 	// Header file
 	//----------------------------------------------------------------------------------------------
-	std::ofstream outHeader;
-	G4String headerFileName = fFileRunSummary + fOutHeaderExtension;
+	G4cout << "****************************************" << G4endl;
+	G4cout << "fOutputHeaders = " << fOutputHeaders << G4endl;
+	G4cout << "****************************************" << G4endl;
 
-	outHeader.open(headerFileName, std::ofstream::trunc);
+	if (fOutputHeaders) {
+		std::ofstream outHeader;
+		G4String headerFileName = fFileRunSummary + fOutHeaderExtension;
 
-	// Catch file I/O error
-	if (!outHeader.good()) {
-		G4cerr << "Topas is exiting due to a serious error in file output." << G4endl;
-		G4cerr << "Output file: " << headerFileName << " cannot be opened" << G4endl;
-		fPm->AbortSession(1);
+		outHeader.open(headerFileName, std::ofstream::trunc);
+
+		// Catch file I/O error
+		if (!outHeader.good()) {
+			G4cerr << "Topas is exiting due to a serious error in file output." << G4endl;
+			G4cerr << "Output file: " << headerFileName << " cannot be opened" << G4endl;
+			fPm->AbortSession(1);
+		}
+
+		outHeader << "# events" << fDelimiter;
+		outHeader << "Dose (Gray)" << fDelimiter;
+		outHeader << "Energy (eV)" << G4endl;
+		outHeader.close();
 	}
-
-	outHeader << "# events" << fDelimiter;
-	outHeader << "Dose (Gray)" << fDelimiter;
-	outHeader << "Energy (eV)" << G4endl;
-	outHeader.close();
 
 	//----------------------------------------------------------------------------------------------
 	// Data file
@@ -532,24 +550,26 @@ void ScoreClusteredDNADamage::OutputComplexDSBToFile() {
 	//----------------------------------------------------------------------------------------------
 	// Header file
 	//----------------------------------------------------------------------------------------------
-	std::ofstream outHeader;
-	G4String headerFileName = fFileComplexDSB + fOutHeaderExtension;
+	if (fOutputHeaders) {
+		std::ofstream outHeader;
+		G4String headerFileName = fFileComplexDSB + fOutHeaderExtension;
 
-	outHeader.open(headerFileName, std::ofstream::trunc);
+		outHeader.open(headerFileName, std::ofstream::trunc);
 
-	// Catch file I/O error
-	if (!outHeader.good()) {
-		G4cerr << "Topas is exiting due to a serious error in file output." << G4endl;
-		G4cerr << "Output file: " << headerFileName << " cannot be opened" << G4endl;
-		fPm->AbortSession(1);
+		// Catch file I/O error
+		if (!outHeader.good()) {
+			G4cerr << "Topas is exiting due to a serious error in file output." << G4endl;
+			G4cerr << "Output file: " << headerFileName << " cannot be opened" << G4endl;
+			fPm->AbortSession(1);
+		}
+
+		outHeader << "Size (bp)" << fDelimiter;
+		outHeader << "Total # of damages" << fDelimiter;
+		outHeader << "# of SSB" << fDelimiter;
+		outHeader << "# of BD" << fDelimiter;
+		outHeader << "# of DSB" << G4endl;
+		outHeader.close();
 	}
-
-	outHeader << "Size (bp)" << fDelimiter;
-	outHeader << "Total # of damages" << fDelimiter;
-	outHeader << "# of SSB" << fDelimiter;
-	outHeader << "# of BD" << fDelimiter;
-	outHeader << "# of DSB" << G4endl;
-	outHeader.close();
 
 	//----------------------------------------------------------------------------------------------
 	// Data file
@@ -584,24 +604,25 @@ void ScoreClusteredDNADamage::OutputNonDSBClusterToFile() {
 	//----------------------------------------------------------------------------------------------
 	// Header file
 	//----------------------------------------------------------------------------------------------
-	std::ofstream outHeader;
-	G4String headerFileName = fFileNonDSBCluster + fOutHeaderExtension;
+	if (fOutputHeaders) {
+		std::ofstream outHeader;
+		G4String headerFileName = fFileNonDSBCluster + fOutHeaderExtension;
 
-	outHeader.open(headerFileName, std::ofstream::trunc);
+		outHeader.open(headerFileName, std::ofstream::trunc);
 
-	// Catch file I/O error
-	if (!outHeader.good()) {
-		G4cerr << "Topas is exiting due to a serious error in file output." << G4endl;
-		G4cerr << "Output file: " << headerFileName << " cannot be opened" << G4endl;
-		fPm->AbortSession(1);
+		// Catch file I/O error
+		if (!outHeader.good()) {
+			G4cerr << "Topas is exiting due to a serious error in file output." << G4endl;
+			G4cerr << "Output file: " << headerFileName << " cannot be opened" << G4endl;
+			fPm->AbortSession(1);
+		}
+
+		outHeader << "Size (bp)" << fDelimiter;
+		outHeader << "Total # of damages" << fDelimiter;
+		outHeader << "# of SSB" << fDelimiter;
+		outHeader << "# of BD" << G4endl;
+		outHeader.close();
 	}
-
-	outHeader << "Size (bp)" << fDelimiter;
-	outHeader << "Total # of damages" << fDelimiter;
-	outHeader << "# of SSB" << fDelimiter;
-	outHeader << "# of BD" << G4endl;
-	outHeader.close();
-
 
 	//----------------------------------------------------------------------------------------------
 	// Data file

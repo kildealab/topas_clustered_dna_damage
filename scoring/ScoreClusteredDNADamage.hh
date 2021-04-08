@@ -183,6 +183,7 @@ private:
     G4bool fScoreClusters;
     G4bool fRecordDamagePerEvent;
     G4bool fRecordDamagePerFiber;
+    G4bool fOutputHeaders;
 
     // Running counters
     G4int fNumEvents;
