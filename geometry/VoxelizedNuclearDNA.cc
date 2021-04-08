@@ -4,6 +4,7 @@
 // Author: Logan Montgomery
 // Based on code written by:
 //      - J Schuemann et al. (2019). DOI:10.1667/RR15226.1
+//      - A McNamara et al. (2018). DOI:10.1088/1361-6560/aad8eb
 //      - S Meylan et al. (2017). DOI:10.1038/s41598-017-11851-4
 //
 // This class is a custom Topas geometry component that creates a nucleus of DNA that is comprised
