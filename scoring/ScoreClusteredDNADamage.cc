@@ -496,10 +496,6 @@ void ScoreClusteredDNADamage::OutputRunSummaryToFile() {
 	//----------------------------------------------------------------------------------------------
 	// Header file
 	//----------------------------------------------------------------------------------------------
-	G4cout << "****************************************" << G4endl;
-	G4cout << "fOutputHeaders = " << fOutputHeaders << G4endl;
-	G4cout << "****************************************" << G4endl;
-
 	if (fOutputHeaders) {
 		std::ofstream outHeader;
 		G4String headerFileName = fFileRunSummary + fOutHeaderExtension;

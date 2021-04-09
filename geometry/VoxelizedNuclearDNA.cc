@@ -137,10 +137,10 @@ void VoxelizedNuclearDNA::ResolveParameters() {
     else
         fUseG4Volumes = false;
 
-    if (fPm->ParameterExists(GetFullParmName("BuildBases")))
-        fBuildBases = fPm->GetBooleanParameter(GetFullParmName("BuildBases"));
+    if (fPm->ParameterExists(GetFullParmName("FillFibersWithDNA")))
+        fFillFibersWithDNA = fPm->GetBooleanParameter(GetFullParmName("FillFibersWithDNA"));
     else
-        fBuildBases = true;
+        fFillFibersWithDNA = true;
 
     if (fPm->ParameterExists(GetFullParmName("BuildNucleus")))
         fBuildNucleus = fPm->GetBooleanParameter(GetFullParmName("BuildNucleus"));
@@ -264,14 +264,14 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
 
     G4LogicalVolume* logicFiber;
     if (fUseG4Volumes) {
-        logicFiber = new G4LogicalVolume(solidFiber,fWater,"logic_fiber");
+        logicFiber = new G4LogicalVolume(solidFiber,fWater,"Fiber");
     }
     else {
-        logicFiber = CreateLogicalVolume("logic_fiber",fWaterName,solidFiber);
+        logicFiber = CreateLogicalVolume("Fiber",fWaterName,solidFiber);
     }  
 
     // If not building DNA in the fiber, return now with empty fiber (for visualization of large geometries)
-    if (!fBuildBases) {
+    if (!fFillFibersWithDNA) {
         return logicFiber;
     }
 
@@ -282,10 +282,10 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
 
     G4LogicalVolume* logicHistone;
     if (fUseG4Volumes) {
-        logicHistone = new G4LogicalVolume(solidHistone,fWater,"logic_histone");
+        logicHistone = new G4LogicalVolume(solidHistone,fWater,"Histone");
     }
     else {
-        logicHistone = CreateLogicalVolume("logic_histone",fWaterName,solidHistone);
+        logicHistone = CreateLogicalVolume("Histone",fWaterName,solidHistone);
     }  
 
     //----------------------------------------------------------------------------------------------

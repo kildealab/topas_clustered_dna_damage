@@ -93,7 +93,7 @@ private:
     G4int fOverlapsResolution;
     G4bool fQuitIfOverlap;
 
-    G4bool fBuildBases;
+    G4bool fFillFibersWithDNA;
 
     G4bool fBuildNucleus;
     G4int fNumVoxelsPerSide;

@@ -1,4 +1,10 @@
 //**************************************************************************************************
+// Author: Logan Montgomery
+// Based on code written by:
+//      - J Schuemann et al. (2019). DOI:10.1667/RR15226.1
+//      - A McNamara et al. (2018). DOI:10.1088/1361-6560/aad8eb
+//      - S Meylan et al. (2017). DOI:10.1038/s41598-017-11851-4
+//
 // This class performs the calculations necessary for placing nucleotide base pairs and nucloesomes.
 // The size of the individual volumes comprising nucleotides and histones are defined using the
 // Initialize() function. CalculateNucleosomePosition() and CalculateDNAPosition() are used to
