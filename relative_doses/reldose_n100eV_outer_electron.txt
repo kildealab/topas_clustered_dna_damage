@@ -1,0 +1,1 @@
+d:Sc/ClusterScorer/DoseThreshold = 0.807 Gy
