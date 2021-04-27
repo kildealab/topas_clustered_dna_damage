@@ -8,7 +8,7 @@
 //      - E Delage et al. (2015). DOI:10.1016/j.cpc.2015.02.026
 //
 // This class is a custom Topas ntuple scorer that records clustered DNA damage induced in a DNA
-// model (VoxelizedNuclearDNA). 
+// model (VoxelizedNuclearDNA).
 //**************************************************************************************************
 
 #include "ScoreClusteredDNADamage.hh"
@@ -20,6 +20,10 @@
 
 #include <map>
 #include "G4RunManager.hh"
+
+#include "G4Molecule.hh"
+#include "G4MoleculeTable.hh"
+#include "G4MolecularConfiguration.hh"
 
 //--------------------------------------------------------------------------------------------------
 // Struct used to hold parameters of interest for a single cluster of DNA damage.
@@ -64,7 +68,7 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fTotalEdep = 0.;
 	fFiberID = 0;
 	fVoxelID = 0;
-		
+
 	// Variables used when generating output files
 	fDelimiter = ",";
 	fOutFileExtension = ".csv";
@@ -94,15 +98,15 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 		fEnergyThreshold = -1.;
 	}
 
-	// Determine order of magnitude of number of base pairs. 
+	// Determine order of magnitude of number of base pairs.
 	// Set fParser parameters accordingly for use in ProcessHits()
 	fNumBpMagnitude = CalculateIntegerMagnitude(fNumNucleosomePerFiber*fNumBpPerNucleosome);
 	// fParserResidue = fNumBpMagnitude*10;
 	// fParserStrand = fNumBpMagnitude*100;
-		
+
 	fThreadID = 0;
 	fEventID = 0;
-	
+
 	//----------------------------------------------------------------------------------------------
 	// Assign member variables to columns in the main output file. Contains DNA damage yields.
 	//----------------------------------------------------------------------------------------------
@@ -153,13 +157,13 @@ void ScoreClusteredDNADamage::ResolveParams() {
 		fThresDistForCluster = fPm->GetIntegerParameter(GetFullParmName("BasePairDistanceForDefiningCluster"));
 	else
 		fThresDistForCluster = 40;
-	
+
 	//----------------------------------------------------------------------------------------------
 	// Score damage clusters or not
 	//----------------------------------------------------------------------------------------------
 	if ( fPm->ParameterExists(GetFullParmName("ScoreClusters")))
 		fScoreClusters = fPm->GetBooleanParameter(GetFullParmName("ScoreClusters"));
-	else 
+	else
 		fScoreClusters = true;
 
 	//----------------------------------------------------------------------------------------------
@@ -167,7 +171,7 @@ void ScoreClusteredDNADamage::ResolveParams() {
 	//----------------------------------------------------------------------------------------------
 	if ( fPm->ParameterExists(GetFullParmName("RecordDamagePerEvent")))
 		fRecordDamagePerEvent = fPm->GetBooleanParameter(GetFullParmName("RecordDamagePerEvent"));
-	else 
+	else
 		fRecordDamagePerEvent = false;
 
 	//----------------------------------------------------------------------------------------------
@@ -176,7 +180,7 @@ void ScoreClusteredDNADamage::ResolveParams() {
 	//----------------------------------------------------------------------------------------------
 	if ( fPm->ParameterExists(GetFullParmName("RecordDamagePerFiber")))
 		fRecordDamagePerFiber = fPm->GetBooleanParameter(GetFullParmName("RecordDamagePerFiber"));
-	else 
+	else
 		fRecordDamagePerFiber = false;
 
 	//----------------------------------------------------------------------------------------------
@@ -202,7 +206,7 @@ void ScoreClusteredDNADamage::ResolveParams() {
 	//----------------------------------------------------------------------------------------------
 	if ( fPm->ParameterExists(GetFullParmName("OutputHeaders")))
 		fOutputHeaders = fPm->GetBooleanParameter(GetFullParmName("OutputHeaders"));
-	else 
+	else
 		fOutputHeaders = true;
 
 	//----------------------------------------------------------------------------------------------
@@ -223,28 +227,28 @@ void ScoreClusteredDNADamage::ResolveParams() {
 	//----------------------------------------------------------------------------------------------
 	if (fPm->ParameterExists(GetFullParmName("BuildNucleus")))
 		fBuildNucleus = fPm->GetBooleanParameter(GetFullParmName("BuildNucleus"));
-	else 
+	else
 		fBuildNucleus = false;
 
 	if (fPm->ParameterExists(GetFullParmName("NumVoxelsPerSide")))
 		fNumVoxelsPerSide = fPm->GetIntegerParameter(GetFullParmName("NumVoxelsPerSide"));
-	else 
+	else
 		fNumVoxelsPerSide = 1;
 
 	if (fPm->ParameterExists(GetFullParmName("VoxelSideLength")))
 		fVoxelSideLength = fPm->GetDoubleParameter(GetFullParmName("VoxelSideLength"),"Length");
-	else 
-		fVoxelSideLength = 150*nm;	
+	else
+		fVoxelSideLength = 150*nm;
 
 	if ( fPm->ParameterExists(GetFullParmName("DnaNumNucleosomePerFiber")) )
 		fNumNucleosomePerFiber = fPm->GetIntegerParameter(GetFullParmName("DnaNumNucleosomePerFiber"));
-	else 
+	else
 		fNumNucleosomePerFiber = 0;
 
 	if ( fPm->ParameterExists(GetFullParmName("DnaNumBpPerNucleosome")) )
 		fNumBpPerNucleosome = fPm->GetIntegerParameter(GetFullParmName("DnaNumBpPerNucleosome"));
 	else
-		fNumBpPerNucleosome = 0;	
+		fNumBpPerNucleosome = 0;
 
 	//----------------------------------------------------------------------------------------------
 	// Material of DNA residue volumes in which to score
@@ -292,7 +296,7 @@ void ScoreClusteredDNADamage::ClearOutputFiles() {
 
 
 //--------------------------------------------------------------------------------------------------
-// Calculate cubic volume of component attached to the scorer. Use parameter values to perform 
+// Calculate cubic volume of component attached to the scorer. Use parameter values to perform
 // calculation according to the shape of the volume
 //--------------------------------------------------------------------------------------------------
 G4double ScoreClusteredDNADamage::CalculateComponentVolume() {
@@ -302,7 +306,7 @@ G4double ScoreClusteredDNADamage::CalculateComponentVolume() {
 }
 
 //--------------------------------------------------------------------------------------------------
-// Handle conversion of dose threshold to energy threshold using the cubic volume and density of 
+// Handle conversion of dose threshold to energy threshold using the cubic volume and density of
 // the geometry component. The resulting energy threshold is divided evenly amongst the worker
 // threads. E.g. If total energy threshold is 1 MeV and there are 4 worker threads. The returned
 // value is 0.25 MeV.
@@ -418,16 +422,110 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 			else if (num_res == 2) {
 				fMapEdepStrand2Base[fVoxelID][fFiberID][num_nucleotide] += edep;
 			}
-		}			
+		}
 		return true;
-
 	}
+
+	G4Track* aTrack = aStep->GetTrack();
+
+	if ( aTrack->GetTrackID() < 0 ) { // chemical tracks
+		G4int OH_ID = G4MoleculeTable::Instance()->GetConfiguration("OH")->GetMoleculeID();
+		G4int moleculeID = GetMolecule(aTrack)->GetMoleculeID();
+		G4bool reacted = false;
+
+		if (moleculeID != OH_ID){
+			// G4String moleculeName = GetMolecule(aTrack)->GetName();
+			// std::cout << "\tmoleculeID does not match moleculeID of OH*. moleculeName: " << moleculeName << std::endl;
+			return false;
+		}
+		else { // molecule is OH*
+			G4float prob_reaction = (float) std::rand()/RAND_MAX;
+			std::cout << "\tprob_reaction: " << prob_reaction << std::endl;
+			if ( prob_reaction <= 0.4 ) {
+				std::cout << "\tREACTION!" << std::endl;
+				reacted = true;
+			}
+		}
+
+		if (reacted) {
+			G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
+			G4int volID = touchable->GetVolume()->GetCopyNo();
+
+			G4int num_strand = -1;
+			G4int num_res = -1;
+			G4int num_nucleotide = -1;
+
+			num_strand = volID / 1000000;
+			num_res = (volID - (num_strand*1000000)) / 100000;
+			num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
+
+			// Record nucleotide damage
+			if ( num_strand == 0 ) {
+				if (num_res == 0 || num_res == 1) {
+					// std::cout << "\tRECORDED SSB1! num_nucleotide: " << num_nucleotide << std::endl;
+					// fIndicesSSB1_indirect.push_back(num_nucleotide);
+					// TODO: Do not record if backbone or base has already been "damaged"
+					if (! (std::find(fIndicesSSB1_indirect.begin(), fIndicesSSB1_indirect.end(), num_nucleotide) != fIndicesSSB1_indirect.end()) ) {
+						std::cout << "\tRECORDED SSB1! num_nucleotide: " << num_nucleotide << std::endl;
+						fIndicesSSB1_indirect.push_back(num_nucleotide);
+					}
+					else {
+						std::cout << "\tALREADY DAMAGED SSB1! num_nucleotide: " << num_nucleotide << std::endl;
+						return false;
+					}
+				}
+				else if (num_res == 2) {
+					// std::cout << "\tRECORDED BD1! num_nucleotide: " << num_nucleotide << std::endl;
+					// fIndicesBD1_indirect.push_back(num_nucleotide);
+					if (! (std::find(fIndicesBD1_indirect.begin(), fIndicesBD1_indirect.end(), num_nucleotide) != fIndicesBD1_indirect.end()) ) {
+						std::cout << "\tRECORDED BD1! num_nucleotide: " << num_nucleotide << std::endl;
+						fIndicesBD1_indirect.push_back(num_nucleotide);
+					}
+					else {
+						std::cout << "\tALREADY DAMAGED BD1! num_nucleotide: " << num_nucleotide << std::endl;
+						return false;
+					}
+				}
+			}
+			else {
+				if (num_res == 0 || num_res == 1) {
+					// std::cout << "\tRECORDED SSB2! num_nucleotide: " << num_nucleotide << std::endl;
+					// fIndicesSSB2_indirect.push_back(num_nucleotide);
+					if (! (std::find(fIndicesSSB2_indirect.begin(), fIndicesSSB2_indirect.end(), num_nucleotide) != fIndicesSSB2_indirect.end()) ) {
+						std::cout << "\tRECORDED SSB2! num_nucleotide: " << num_nucleotide << std::endl;
+						fIndicesSSB2_indirect.push_back(num_nucleotide);
+					}
+					else {
+						std::cout << "\tALREADY DAMAGED SSB2! num_nucleotide: " << num_nucleotide << std::endl;
+						return false;
+					}
+				}
+				else if (num_res == 2) {
+					// std::cout << "\tRECORDED BD2! num_nucleotide: " << num_nucleotide << std::endl;
+					// fIndicesBD2_indirect.push_back(num_nucleotide);
+					if (! (std::find(fIndicesBD2_indirect.begin(), fIndicesBD2_indirect.end(), num_nucleotide) != fIndicesBD2_indirect.end()) ) {
+						std::cout << "\tRECORDED BD2! num_nucleotide: " << num_nucleotide << std::endl;
+						fIndicesBD2_indirect.push_back(num_nucleotide);
+					}
+					else {
+						std::cout << "\tALREADY DAMAGED BD2! num_nucleotide: " << num_nucleotide << std::endl;
+						return false;
+					}
+				}
+			}
+
+			// Kill track
+			aStep->GetTrack()->SetTrackStatus(fStopAndKill);
+			return true;
+		} // reacted
+	} // negative trackID
+
 	return false;
 }
 
 
 //--------------------------------------------------------------------------------------------------
-// This method is called at the end of the event (primary particle & its secondaries). 
+// This method is called at the end of the event (primary particle & its secondaries).
 //
 // If doing event-by-event scoring: process the energy deposoition maps to determine DNA damage
 // yields and output the results.
@@ -460,9 +558,9 @@ void ScoreClusteredDNADamage::UserHookForEndOfEvent() {
 
 //--------------------------------------------------------------------------------------------------
 // This method is called at the end of the run (all primary particles). Only called by the master
-// thread, not the worker threads. 
+// thread, not the worker threads.
 //
-// If scoring over the whole run: process the energy deposoition maps (combined over all worker 
+// If scoring over the whole run: process the energy deposoition maps (combined over all worker
 // threads) to determine DNA yields and output the results.
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::UserHookForEndOfRun() {
@@ -652,7 +750,7 @@ void ScoreClusteredDNADamage::OutputNonDSBClusterToFile() {
 void ScoreClusteredDNADamage::AbsorbResultsFromWorkerScorer(TsVScorer* workerScorer)
 {
 	TsVNtupleScorer::AbsorbResultsFromWorkerScorer(workerScorer); // run the parent version
-    
+
 	ScoreClusteredDNADamage* myWorkerScorer = dynamic_cast<ScoreClusteredDNADamage*>(workerScorer);
 
 	// Absorb various worker thread data
@@ -674,7 +772,7 @@ void ScoreClusteredDNADamage::AbsorbResultsFromWorkerScorer(TsVScorer* workerSco
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::AbsorbMapFromWorkerScorer(
 	std::map<G4int,std::map<G4int,std::map<G4int, G4double>>> &masterMap,
-	std::map<G4int,std::map<G4int,std::map<G4int, G4double>>> &workerMap) 
+	std::map<G4int,std::map<G4int,std::map<G4int, G4double>>> &workerMap)
 {
 	// Loop over all voxels in nucleus
 	std::map<G4int,std::map<G4int,std::map<G4int, G4double>>>::iterator itVoxel = workerMap.begin();
@@ -718,9 +816,9 @@ void ScoreClusteredDNADamage::RecordDamage() {
 	// Iterate over all voxels
 	G4int numVoxels = pow(fNumVoxelsPerSide,3);
 	for (G4int iVoxel = 0; iVoxel < numVoxels; iVoxel++) {
-		fVoxelID = iVoxel; 
+		fVoxelID = iVoxel;
 
-		// Iterate over all DNA fibres 
+		// Iterate over all DNA fibres
 		for (G4int iFiber = 0; iFiber < fNumFibers; iFiber++) {
 			fFiberID = iFiber;
 
@@ -775,7 +873,7 @@ void ScoreClusteredDNADamage::RecordDamage() {
 
 
 //--------------------------------------------------------------------------------------------------
-// This method resets member variable values, which is necessary if processing damage on an 
+// This method resets member variable values, which is necessary if processing damage on an
 // event-by-event basis.
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::ResetMemberVariables() {
@@ -952,9 +1050,9 @@ void ScoreClusteredDNADamage::RecordClusteredDamage()
 //--------------------------------------------------------------------------------------------------
 // Add a new DNA damage site to a cluster.
 //--------------------------------------------------------------------------------------------------
-void ScoreClusteredDNADamage::AddDamageToCluster(DamageCluster& cluster, G4int damageSite, 
+void ScoreClusteredDNADamage::AddDamageToCluster(DamageCluster& cluster, G4int damageSite,
 												G4int damageType, G4bool newCluster) {
-	// If this cluster is a new cluster, set the new damage as the start site. Otherwise, set the 
+	// If this cluster is a new cluster, set the new damage as the start site. Otherwise, set the
 	// new damage as the end site.
 	if (newCluster) {
 		cluster.start = damageSite;
@@ -964,7 +1062,7 @@ void ScoreClusteredDNADamage::AddDamageToCluster(DamageCluster& cluster, G4int d
 	}
 
 	// Increment the correct damage counter for this cluster, and correspondingly decrement the
-	// correct individual damage counter 
+	// correct individual damage counter
 	if (damageType == fIdSSB) {
 		cluster.numSSB++;
 		fTotalSSB--;
@@ -988,8 +1086,8 @@ void ScoreClusteredDNADamage::AddDamageToCluster(DamageCluster& cluster, G4int d
 
 
 //--------------------------------------------------------------------------------------------------
-// Add the details of a cluster to the appropriate member variables (distinguishing a Complex DSB 
-// from a Non-DSB Cluster). Update counts of appropriate type of cluster. Reset the cluster 
+// Add the details of a cluster to the appropriate member variables (distinguishing a Complex DSB
+// from a Non-DSB Cluster). Update counts of appropriate type of cluster. Reset the cluster
 // variable.
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::RecordCluster(DamageCluster& cluster) {
@@ -1100,7 +1198,7 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 		itBD2++;
 	}
 
-	// DSBs 
+	// DSBs
 	std::vector<G4int>::iterator itDSB = fIndicesDSB.begin();
 	itSimple = indicesSimple.begin();
 	while (itDSB != fIndicesDSB.end() && itSimple != indicesSimple.end()) {
@@ -1171,7 +1269,7 @@ void ScoreClusteredDNADamage::PrintDNADamageToConsole() {
 		G4cout << "\tNum BD = " << fNonDSBClusterNumBD[i] << G4endl;
 		G4cout << "\tNum damage = " << fNonDSBClusterNumDamage[i] << G4endl;
 	}
-	G4cout << "##########################################################" << G4endl;				
+	G4cout << "##########################################################" << G4endl;
 }
 
 
@@ -1190,7 +1288,7 @@ void ScoreClusteredDNADamage::CreateFakeEnergyMap() {
 	std::map<G4int,G4double> base2 = {{11,eng},{17,eng}};
 	std::map<G4int,G4double> back2 = {{1,eng},{3,eng}};
 
-	// Test case 2 
+	// Test case 2
 	// std::map<G4int,G4double> back1 = {{6,eng}};
 	// std::map<G4int,G4double> base1 = {{15,eng},{20,eng}};
 	// std::map<G4int,G4double> base2 = {{15,eng}};

@@ -6,7 +6,7 @@
 //      - E Delage et al. (2015). DOI:10.1016/j.cpc.2015.02.026
 //
 // This class is a custom Topas ntuple scorer that records clustered DNA damage induced in a DNA
-// model (VoxelizedNuclearDNA). 
+// model (VoxelizedNuclearDNA).
 //**************************************************************************************************
 
 #ifndef ScoreClusteredDNADamage_hh
@@ -29,7 +29,7 @@ public:
     //----------------------------------------------------------------------------------------------
     ScoreClusteredDNADamage(TsParameterManager* pM, TsMaterialManager* mM, TsGeometryManager* gM, TsScoringManager* scM, TsExtensionManager* eM,
                    G4String scorerName, G4String quantity, G4String outFileName, G4bool isSubScorer);
-    
+
     //--------------------------------------------------------------------------------------------------
     // Destructor
     //--------------------------------------------------------------------------------------------------
@@ -39,12 +39,12 @@ public:
     // Read in parameters from the Topas parameter file & save values in some member variables.
     //----------------------------------------------------------------------------------------------
     void ResolveParams();
-    
+
     //--------------------------------------------------------------------------------------------------
     // Record energy depositions in the sensitive DNA volumes.
     //--------------------------------------------------------------------------------------------------
     G4bool ProcessHits(G4Step*,G4TouchableHistory*);
-    
+
     //----------------------------------------------------------------------------------------------
     // Optionally process energy depositions to determine DNA damage yields (event-by-event)
     //----------------------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ public:
     //----------------------------------------------------------------------------------------------
     void UserHookForEndOfRun();
 
-    
+
 private:
     //----------------------------------------------------------------------------------------------
     // Erase contents of various output files (and their corresponding header files)
@@ -69,7 +69,7 @@ private:
 
     //----------------------------------------------------------------------------------------------
     // Convert dose threshold to energy threshold using the cubic volume and density of the
-    // geometry component. 
+    // geometry component.
     //----------------------------------------------------------------------------------------------
     G4double ConvertDoseThresholdToEnergy();
 
@@ -104,7 +104,7 @@ private:
     //----------------------------------------------------------------------------------------------
     // Process maps of energy depositions and record DNA damage yields to member variables.
     //----------------------------------------------------------------------------------------------
-    void RecordDamage(); 
+    void RecordDamage();
 
     //----------------------------------------------------------------------------------------------
     // This method resets member variable values
@@ -115,7 +115,7 @@ private:
     // This method resets variables that count the yields for various types of DNA damage.
     //----------------------------------------------------------------------------------------------
     void ResetDamageCounterVariables();
-    
+
     //----------------------------------------------------------------------------------------------
     // Record bp indices of one type of simple DNA damage (SSB or BD) in a single strand to a vector
     //----------------------------------------------------------------------------------------------
@@ -157,7 +157,7 @@ private:
     // Methods used in validating scoring functionality
     void CreateFakeEnergyMap();
     void PrintDNADamageToConsole();
-    
+
 
     //----------------------------------------------------------------------------------------------
     // Member variables
@@ -204,13 +204,13 @@ private:
     G4String fOutHeaderExtension;
     G4String fOutFileExtension;
     G4String fFileRunSummary;
-    
+
     // These maps record energy deposited in bp in one of the strands of the DNA double helix
     std::map<G4int, G4double> fFiberMapEdepStrand1Backbone;
     std::map<G4int, G4double> fFiberMapEdepStrand2Backbone;
     std::map<G4int, G4double> fFiberMapEdepStrand1Base;
     std::map<G4int, G4double> fFiberMapEdepStrand2Base;
-    
+
     // These maps energy deposited in bp in one of the strands of the DNA double helix in a
     // triple-nested map structure
     // map1 (key, map2) --> map2 (key, map3) --> map3 (key, double)
@@ -221,7 +221,7 @@ private:
     std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fMapEdepStrand2Backbone;
     std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fMapEdepStrand1Base;
     std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fMapEdepStrand2Base;
-    
+
     // Various IDs
     G4int fThreadID;
     G4int fEventID;
@@ -234,7 +234,7 @@ private:
     G4int fTotalDSB;
     G4int fTotalComplexDSB;
     G4int fTotalNonDSBCluster;
-    
+
     // Constant variables to identify damage types
     static const G4int fIdSSB = 0;
     static const G4int fIdBD = 1;
@@ -246,7 +246,7 @@ private:
     static const G4int fParentIndexVoxelY = 4; // Touchable history index for accessing Y voxels
 
     // When reporting yields if, for example, aggregating over all events, set event number = -1
-    static const G4int fAggregateValueIndicator = -1; 
+    static const G4int fAggregateValueIndicator = -1;
 
     G4int fNumFibers;
 
@@ -255,13 +255,18 @@ private:
     std::vector<G4int> fIndicesSSB2;
     std::vector<G4int> fIndicesBD1;
     std::vector<G4int> fIndicesBD2;
+    std::vector<G4int> fIndicesSSB1_indirect;
+    std::vector<G4int> fIndicesSSB2_indirect;
+    std::vector<G4int> fIndicesBD1_indirect;
+    std::vector<G4int> fIndicesBD2_indirect;
 
     // Vector to hold indices of DSBs
     std::vector<G4int>  fIndicesDSB;
+    std::vector<G4int>  fIndicesDSB_indirect; // might not be necessary
 
     // Clustered damage handling
     std::vector<std::array<G4int,2>> fIndicesSimple; // first # is bp index, second # is 0 or 1 to represent SSB or BD
-    
+
     G4String fFileComplexDSB;
     std::vector<G4int> fComplexDSBSizes; // Vector of lengths of complex DSB (in # of bp)
     std::vector<G4int> fComplexDSBNumSSB;
