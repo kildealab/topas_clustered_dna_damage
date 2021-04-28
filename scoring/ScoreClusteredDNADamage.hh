@@ -57,6 +57,11 @@ public:
 
 
 private:
+    //--------------------------------------------------------------------------------------------------
+    // This helper method checks whether an element is in a vector.
+    //--------------------------------------------------------------------------------------------------
+    G4bool ElementInVector(G4int, std::vector<G4int>);
+
     //----------------------------------------------------------------------------------------------
     // Erase contents of various output files (and their corresponding header files)
     //----------------------------------------------------------------------------------------------
@@ -105,6 +110,11 @@ private:
     // Process maps of energy depositions and record DNA damage yields to member variables.
     //----------------------------------------------------------------------------------------------
     void RecordDamage();
+
+    //--------------------------------------------------------------------------------------------------
+    // This method merges and resolves duplicates of the damage yields from direct and indirect damage.
+    //--------------------------------------------------------------------------------------------------
+    std::vector<G4int> MergeDamageIndices(std::vector<G4int>,std::vector<G4int>);
 
     //----------------------------------------------------------------------------------------------
     // This method resets member variable values
@@ -255,6 +265,10 @@ private:
     std::vector<G4int> fIndicesSSB2;
     std::vector<G4int> fIndicesBD1;
     std::vector<G4int> fIndicesBD2;
+    std::vector<G4int> fIndicesSSB1_direct;
+    std::vector<G4int> fIndicesSSB2_direct;
+    std::vector<G4int> fIndicesBD1_direct;
+    std::vector<G4int> fIndicesBD2_direct;
     std::vector<G4int> fIndicesSSB1_indirect;
     std::vector<G4int> fIndicesSSB2_indirect;
     std::vector<G4int> fIndicesBD1_indirect;

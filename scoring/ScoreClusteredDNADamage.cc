@@ -426,6 +426,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 		return true;
 	}
 
+	// Indirect damage starting here
 	G4Track* aTrack = aStep->GetTrack();
 
 	if ( aTrack->GetTrackID() < 0 ) { // chemical tracks
@@ -446,7 +447,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 				reacted = true;
 			}
 		}
-
+		// reacted = true; // just for testing
 		if (reacted) {
 			G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
 			G4int volID = touchable->GetVolume()->GetCopyNo();
@@ -459,13 +460,10 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 			num_res = (volID - (num_strand*1000000)) / 100000;
 			num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
 
-			// Record nucleotide damage
-			if ( num_strand == 0 ) {
+			// Record nucleotide damage.  Do not record if backbone or base has already been "damaged"
+			if ( num_strand == 0 ) { // first strand
 				if (num_res == 0 || num_res == 1) {
-					// std::cout << "\tRECORDED SSB1! num_nucleotide: " << num_nucleotide << std::endl;
-					// fIndicesSSB1_indirect.push_back(num_nucleotide);
-					// TODO: Do not record if backbone or base has already been "damaged"
-					if (! (std::find(fIndicesSSB1_indirect.begin(), fIndicesSSB1_indirect.end(), num_nucleotide) != fIndicesSSB1_indirect.end()) ) {
+					if (!ElementInVector(num_nucleotide, fIndicesSSB1_indirect)) {
 						std::cout << "\tRECORDED SSB1! num_nucleotide: " << num_nucleotide << std::endl;
 						fIndicesSSB1_indirect.push_back(num_nucleotide);
 					}
@@ -475,9 +473,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 					}
 				}
 				else if (num_res == 2) {
-					// std::cout << "\tRECORDED BD1! num_nucleotide: " << num_nucleotide << std::endl;
-					// fIndicesBD1_indirect.push_back(num_nucleotide);
-					if (! (std::find(fIndicesBD1_indirect.begin(), fIndicesBD1_indirect.end(), num_nucleotide) != fIndicesBD1_indirect.end()) ) {
+					if (!ElementInVector(num_nucleotide, fIndicesBD1_indirect)) {
 						std::cout << "\tRECORDED BD1! num_nucleotide: " << num_nucleotide << std::endl;
 						fIndicesBD1_indirect.push_back(num_nucleotide);
 					}
@@ -487,11 +483,9 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 					}
 				}
 			}
-			else {
+			else { // second strand
 				if (num_res == 0 || num_res == 1) {
-					// std::cout << "\tRECORDED SSB2! num_nucleotide: " << num_nucleotide << std::endl;
-					// fIndicesSSB2_indirect.push_back(num_nucleotide);
-					if (! (std::find(fIndicesSSB2_indirect.begin(), fIndicesSSB2_indirect.end(), num_nucleotide) != fIndicesSSB2_indirect.end()) ) {
+					if (!ElementInVector(num_nucleotide, fIndicesSSB2_indirect)) {
 						std::cout << "\tRECORDED SSB2! num_nucleotide: " << num_nucleotide << std::endl;
 						fIndicesSSB2_indirect.push_back(num_nucleotide);
 					}
@@ -501,9 +495,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 					}
 				}
 				else if (num_res == 2) {
-					// std::cout << "\tRECORDED BD2! num_nucleotide: " << num_nucleotide << std::endl;
-					// fIndicesBD2_indirect.push_back(num_nucleotide);
-					if (! (std::find(fIndicesBD2_indirect.begin(), fIndicesBD2_indirect.end(), num_nucleotide) != fIndicesBD2_indirect.end()) ) {
+					if (!ElementInVector(num_nucleotide, fIndicesBD2_indirect)) {
 						std::cout << "\tRECORDED BD2! num_nucleotide: " << num_nucleotide << std::endl;
 						fIndicesBD2_indirect.push_back(num_nucleotide);
 					}
@@ -521,6 +513,19 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	} // negative trackID
 
 	return false;
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// This helper method checks whether an element is in a vector.
+//--------------------------------------------------------------------------------------------------
+G4bool ScoreClusteredDNADamage::ElementInVector(G4int pElement, std::vector<G4int> pVector) {
+	if (std::find(pVector.begin(), pVector.end(), pElement) != pVector.end()){
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 
 
@@ -830,10 +835,33 @@ void ScoreClusteredDNADamage::RecordDamage() {
 			fFiberMapEdepStrand2Base = fMapEdepStrand2Base[iVoxel][iFiber];
 
 			// Determine yields of simple damages (SSB and BD) in both strands
-			fIndicesSSB1 = RecordSimpleDamage(fThresEdepForSSB,fFiberMapEdepStrand1Backbone);
-			fIndicesSSB2 = RecordSimpleDamage(fThresEdepForSSB,fFiberMapEdepStrand2Backbone);
-			fIndicesBD1 = RecordSimpleDamage(fThresEdepForBD,fFiberMapEdepStrand1Base);
-			fIndicesBD2 = RecordSimpleDamage(fThresEdepForBD,fFiberMapEdepStrand2Base);
+			fIndicesSSB1_direct = RecordSimpleDamage(fThresEdepForSSB,fFiberMapEdepStrand1Backbone);
+			fIndicesSSB2_direct = RecordSimpleDamage(fThresEdepForSSB,fFiberMapEdepStrand2Backbone);
+			fIndicesBD1_direct = RecordSimpleDamage(fThresEdepForBD,fFiberMapEdepStrand1Base);
+			fIndicesBD2_direct = RecordSimpleDamage(fThresEdepForBD,fFiberMapEdepStrand2Base);
+
+			// Merge and resolve damage yields from direct and indirect damage
+			// TODO: move toggle booleans to header and parameter file parser
+			G4bool fIncludeDirectDamage = true;
+			G4bool fIncludeIndirectDamage = true;
+			if (fIncludeDirectDamage && fIncludeIndirectDamage){
+				fIndicesSSB1 = MergeDamageIndices(fIndicesSSB1_direct, fIndicesSSB1_indirect);
+				fIndicesSSB2 = MergeDamageIndices(fIndicesSSB2_direct, fIndicesSSB2_indirect);
+				fIndicesBD1 = MergeDamageIndices(fIndicesBD1_direct, fIndicesBD1_indirect);
+				fIndicesBD2 = MergeDamageIndices(fIndicesBD2_direct, fIndicesBD2_indirect);
+			}
+			else if (fIncludeIndirectDamage) {
+				fIndicesSSB1 = fIndicesSSB1_indirect;
+				fIndicesSSB2 = fIndicesSSB2_indirect;
+				fIndicesBD1 = fIndicesBD1_indirect;
+				fIndicesBD2 = fIndicesBD2_indirect;
+			}
+			else {
+				fIndicesSSB1 = fIndicesSSB1_direct;
+				fIndicesSSB2 = fIndicesSSB2_direct;
+				fIndicesBD1 = fIndicesBD1_direct;
+				fIndicesBD2 = fIndicesBD2_direct;
+			}
 
 			// Process SSBs in both strands to determine if there are any DSB
 			fIndicesDSB = RecordDSB();
@@ -869,6 +897,30 @@ void ScoreClusteredDNADamage::RecordDamage() {
 		fFiberID = fAggregateValueIndicator;
 		fNtuple->Fill(); // Move this to outside loop if aggregating over all fibres
 	}
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// This method merges and resolves duplicates of the damage yields from direct and indirect damage.
+//--------------------------------------------------------------------------------------------------
+std::vector<G4int> ScoreClusteredDNADamage::MergeDamageIndices(std::vector<G4int> pDamageIndices1,
+	std::vector<G4int> pDamageIndices2)
+{
+	std::vector<G4int> damageIndices_merged;
+
+	for (G4int element : pDamageIndices1) {
+		if (!ElementInVector(element, damageIndices_merged)) {
+			damageIndices_merged.push_back(element);
+		}
+	}
+
+	for (G4int element : pDamageIndices2) {
+		if (!ElementInVector(element, damageIndices_merged)) {
+			damageIndices_merged.push_back(element);
+		}
+	}
+
+	return damageIndices_merged;
 }
 
 
