@@ -428,27 +428,30 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 
 	// Indirect damage starting here
 	G4Track* aTrack = aStep->GetTrack();
+	G4int trackID = aTrack->GetTrackID();
 
-	if ( aTrack->GetTrackID() < 0 ) { // chemical tracks
+	if ( trackID < 0 ) { // chemical tracks
 		G4int OH_ID = G4MoleculeTable::Instance()->GetConfiguration("OH")->GetMoleculeID();
 		G4int moleculeID = GetMolecule(aTrack)->GetMoleculeID();
-		G4bool reacted = false;
+		G4bool damaged = false;
 
 		if (moleculeID != OH_ID){
 			// G4String moleculeName = GetMolecule(aTrack)->GetName();
 			// std::cout << "\tmoleculeID does not match moleculeID of OH*. moleculeName: " << moleculeName << std::endl;
+			// TODO: kill track?
 			return false;
 		}
 		else { // molecule is OH*
-			G4float prob_reaction = (float) std::rand()/RAND_MAX;
-			std::cout << "\tprob_reaction: " << prob_reaction << std::endl;
-			if ( prob_reaction <= 0.4 ) {
-				std::cout << "\tREACTION!" << std::endl;
-				reacted = true;
+			G4float prob_damage = (float) std::rand()/RAND_MAX;
+			std::cout << "\tprob_damage: " << prob_damage << std::endl;
+			if ( prob_damage <= 0.8 ) { // TODO: extract probability of inducing SB to parameter parser
+				std::cout << "\tDAMAGE INDUCED!" << std::endl;
+				damaged = true;
 			}
 		}
-		// reacted = true; // just for testing
-		if (reacted) {
+		// damaged = true; // just for testing
+		// Record nucleotide damage.
+		if (damaged) {
 			G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
 			G4int volID = touchable->GetVolume()->GetCopyNo();
 
@@ -460,7 +463,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 			num_res = (volID - (num_strand*1000000)) / 100000;
 			num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
 
-			// Record nucleotide damage.  Do not record if backbone or base has already been "damaged"
+			// Do not record if backbone or base has already been "damaged" previously via indirect actions
 			if ( num_strand == 0 ) { // first strand
 				if (num_res == 0 || num_res == 1) {
 					if (!ElementInVector(num_nucleotide, fIndicesSSB1_indirect)) {
@@ -508,8 +511,9 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 
 			// Kill track
 			aStep->GetTrack()->SetTrackStatus(fStopAndKill);
+			std::cout << "\tTrack KILLED! trackID: " << trackID << std::endl;
 			return true;
-		} // reacted
+		} // damaged
 	} // negative trackID
 
 	return false;
