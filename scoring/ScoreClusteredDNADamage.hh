@@ -103,8 +103,11 @@ private:
     // This method transfers the contents of a map of energy depositions from the worker thread to
     // the master thread
     //----------------------------------------------------------------------------------------------
-    void AbsorbMapFromWorkerScorer(std::map<G4int,std::map<G4int,std::map<G4int, G4double>>>&,
+    void AbsorbDirDmgMapFromWorkerScorer(std::map<G4int,std::map<G4int,std::map<G4int, G4double>>>&,
         std::map<G4int,std::map<G4int,std::map<G4int, G4double>>>&);
+
+    void AbsorbIndDmgMapFromWorkerScorer(std::map<G4int,std::map<G4int,std::vector<G4int>>>&,
+        std::map<G4int,std::map<G4int,std::vector<G4int>>>&);
 
     //----------------------------------------------------------------------------------------------
     // Process maps of energy depositions and record DNA damage yields to member variables.
@@ -167,6 +170,8 @@ private:
     // Methods used in validating scoring functionality
     void CreateFakeEnergyMap();
     void PrintDNADamageToConsole();
+
+    void Print1DVectorContents(std::vector<G4int>);
 
 
     //----------------------------------------------------------------------------------------------
@@ -232,11 +237,30 @@ private:
     std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fMapEdepStrand1Base;
     std::map<G4int, std::map<G4int, std::map<G4int, G4double>>> fMapEdepStrand2Base;
 
+    // map1 (key, map2) --> map2 (key, vector) --> vector (int)
+    std::map<G4int, std::map<G4int, std::vector<G4int>>> fMapIndDamageStrand1Backbone;
+    std::map<G4int, std::map<G4int, std::vector<G4int>>> fMapIndDamageStrand2Backbone;
+    std::map<G4int, std::map<G4int, std::vector<G4int>>> fMapIndDamageStrand1Base;
+    std::map<G4int, std::map<G4int, std::vector<G4int>>> fMapIndDamageStrand2Base;
+
     // Various IDs
     G4int fThreadID;
     G4int fEventID;
     G4int fFiberID;
     G4int fVoxelID;
+
+    // Molecule IDs
+    G4int fMoleculeID_OH;
+    G4int fMoleculeID_OHm;
+    G4int fMoleculeID_e_aq;
+    G4int fMoleculeID_H2;
+    G4int fMoleculeID_H3Op;
+    G4int fMoleculeID_H;
+    G4int fMoleculeID_H2O2;
+    G4int fMoleculeID_HO2;
+    G4int fMoleculeID_HO2m;
+    G4int fMoleculeID_O2;
+    G4int fMoleculeID_O2m;
 
     // Damage yields
     G4int fTotalSSB;
@@ -250,6 +274,11 @@ private:
     static const G4int fIdBD = 1;
     static const G4int fIdDSB = 2;
 
+    // Constant variables to identify residual DNA volume types after parsing volID in ProcessHits
+    static const G4int fVolIdPhosphate = 0;
+    static const G4int fVolIdDeoxyribose = 1;
+    static const G4int fVolIdBase = 2;
+
     static const G4int fParentIndexFiber = 1; // Touchable history index for accessing DNA fiber
     static const G4int fParentIndexVoxelZ = 2; // Touchable history index for accessing Z voxels
     static const G4int fParentIndexVoxelX = 3; // Touchable history index for accessing X voxels
@@ -259,6 +288,10 @@ private:
     static const G4int fAggregateValueIndicator = -1;
 
     G4int fNumFibers;
+
+    // Map of moleculeID to corresponding probability of inflicting damage when molecule reacts with DNA volume
+    std::map<G4int, G4float> fMoleculeDamageProb_SSB; // backbone damage
+    std::map<G4int, G4float> fMoleculeDamageProb_BD; // base damage
 
     // Vectors to hold indices of simple damages
     std::vector<G4int> fIndicesSSB1;

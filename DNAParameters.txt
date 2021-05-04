@@ -85,7 +85,7 @@ s:Ge/MyDNA/Phosphate2/DrawingStyle = "Solid"
 s:Ge/MyDNA/Phosphate2/Color = "PhosphateColor"
 
 #---------------------------------------------------------------------------------------------------
-# Physics 
+# Physics
 #---------------------------------------------------------------------------------------------------
 sv:Ph/Default/Modules = 1 "g4em-dna_opt2"
 d:Ph/Default/EMRangeMin = 10. eV # minimum for EM tables
@@ -95,7 +95,7 @@ d:Ph/Default/EMRangeMin = 10. eV # minimum for EM tables
 #---------------------------------------------------------------------------------------------------
 # Surface source (particles directed inwards with random orientation)
 s:So/Example/Type = "VolumeOrSurface"
-s:So/Example/Component = "MyDNA" 
+s:So/Example/Component = "MyDNA"
 s:So/Example/DistributePrimariesAtVolumeRegion = "surface"
 s:So/Example/DirectPrimariesTo = "inside"
 ic:So/Example/NumberOfHistoriesInRun = 50
@@ -110,6 +110,7 @@ u:So/Example/BeamEnergySpread = 0.
 # s:So/Example/BeamEnergySpectrumType = "Discrete"
 # includeFile = spectra/energy_bins.txt
 # includeFile = spectra/spectrum_n1MeV_inter_proton.txt
+# includeFile = from relative_doses
 
 #---------------------------------------------------------------------------------------------------
 # Clustered DNA damage scorer
@@ -161,7 +162,7 @@ i:Ts/NumberOfThreads = 1
 i:Ts/RunVerbosity = 0
 i:Ts/EventVerbosity = 0
 i:Ts/TrackingVerbosity = 0
-i:Ts/SequenceVerbosity = 0 
+i:Ts/SequenceVerbosity = 0
 
 # Pauses
 Ts/PauseBeforeInit = "False" # This allows checking memory use before any physics tables are loaded
