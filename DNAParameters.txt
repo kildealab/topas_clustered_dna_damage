@@ -104,8 +104,12 @@ s:Ge/MyDNA/Phosphate2/Color = "PhosphateColor"
 #---------------------------------------------------------------------------------------------------
 # Physics 
 #---------------------------------------------------------------------------------------------------
-sv:Ph/Default/Modules = 1 "g4em-dna_opt2"
+sv:Ph/Default/Modules = 1 "g4em-dna_opt2and4"
 d:Ph/Default/EMRangeMin = 10. eV # minimum for EM tables
+b:Ph/Default/Fluorescence = "True"
+b:Ph/Default/Auger = "True"
+b:Ph/Default/AugerCascade = "True"
+b:Ph/Default/DeexcitationIgnoreCut = "True"
 
 #---------------------------------------------------------------------------------------------------
 # Particle source
