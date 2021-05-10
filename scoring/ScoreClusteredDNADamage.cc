@@ -63,18 +63,9 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fTotalComplexDSB = 0;
 	fTotalNonDSBCluster = 0;
 
-	// MoleculeIDs
-	fMoleculeID_OH = G4MoleculeTable::Instance()->GetConfiguration("OH")->GetMoleculeID();
-	fMoleculeID_OHm = G4MoleculeTable::Instance()->GetConfiguration("OHm")->GetMoleculeID();
-	fMoleculeID_e_aq = G4MoleculeTable::Instance()->GetConfiguration("e_aq")->GetMoleculeID();
-	fMoleculeID_H2 = G4MoleculeTable::Instance()->GetConfiguration("H2")->GetMoleculeID();
-	fMoleculeID_H3Op = G4MoleculeTable::Instance()->GetConfiguration("H3Op")->GetMoleculeID();
-	fMoleculeID_H = G4MoleculeTable::Instance()->GetConfiguration("H")->GetMoleculeID();
-	fMoleculeID_H2O2 = G4MoleculeTable::Instance()->GetConfiguration("H2O2")->GetMoleculeID();
-	// fMoleculeID_HO2 = G4MoleculeTable::Instance()->GetConfiguration("HO2")->GetMoleculeID();
-	// fMoleculeID_HO2m = G4MoleculeTable::Instance()->GetConfiguration("HO2m")->GetMoleculeID();
-	// fMoleculeID_O2 = G4MoleculeTable::Instance()->GetConfiguration("O2")->GetMoleculeID();
-	// fMoleculeID_O2m = G4MoleculeTable::Instance()->GetConfiguration("O2m")->GetMoleculeID();
+	fDoubleCountsDI = 0;
+	fDoubleCountsII = 0;
+	fNumProcessHitsCalls = 0;
 
 	// Run tracking
 	fNumEvents = 0;
@@ -172,6 +163,18 @@ void ScoreClusteredDNADamage::ResolveParams() {
 		fThresDistForCluster = 40;
 
 	//----------------------------------------------------------------------------------------------
+	// Score direct or indirect damage
+	//----------------------------------------------------------------------------------------------
+	if ( fPm->ParameterExists(GetFullParmName("IncludeDirectDamage")))
+		fIncludeDirectDamage = fPm->GetBooleanParameter(GetFullParmName("IncludeDirectDamage"));
+	else
+		fIncludeDirectDamage = true;
+	if ( fPm->ParameterExists(GetFullParmName("IncludeIndirectDamage")))
+		fIncludeIndirectDamage = fPm->GetBooleanParameter(GetFullParmName("IncludeIndirectDamage"));
+	else
+		fIncludeIndirectDamage = true;
+
+	//----------------------------------------------------------------------------------------------
 	// Score damage clusters or not
 	//----------------------------------------------------------------------------------------------
 	if ( fPm->ParameterExists(GetFullParmName("ScoreClusters")))
@@ -262,6 +265,131 @@ void ScoreClusteredDNADamage::ResolveParams() {
 		fNumBpPerNucleosome = fPm->GetIntegerParameter(GetFullParmName("DnaNumBpPerNucleosome"));
 	else
 		fNumBpPerNucleosome = 0;
+
+	//----------------------------------------------------------------------------------------------
+	// Chemistry parameters
+	//----------------------------------------------------------------------------------------------
+	// MoleculeIDs
+	fMoleculeID_OH = G4MoleculeTable::Instance()->GetConfiguration("OH")->GetMoleculeID();
+	fMoleculeID_OHm = G4MoleculeTable::Instance()->GetConfiguration("OHm")->GetMoleculeID();
+	fMoleculeID_e_aq = G4MoleculeTable::Instance()->GetConfiguration("e_aq")->GetMoleculeID();
+	fMoleculeID_H2 = G4MoleculeTable::Instance()->GetConfiguration("H2")->GetMoleculeID();
+	fMoleculeID_H3Op = G4MoleculeTable::Instance()->GetConfiguration("H3Op")->GetMoleculeID();
+	fMoleculeID_H = G4MoleculeTable::Instance()->GetConfiguration("H")->GetMoleculeID();
+	fMoleculeID_H2O2 = G4MoleculeTable::Instance()->GetConfiguration("H2O2")->GetMoleculeID();
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/OH")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_OH, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/OH")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_OH, 0.4);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/OH")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_OH, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/OH")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_OH, 0.0);
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/OHm")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_OHm, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/OHm")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_OHm, 0.0);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/OHm")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_OHm, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/OHm")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_OHm, 0.0);
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/e_aq")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_e_aq, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/e_aq")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_e_aq, 0.0);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/e_aq")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_e_aq, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/e_aq")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_e_aq, 0.0);
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/H2")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/H2")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H2, 0.0);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/H2")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_H2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/H2")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_H2, 0.0);
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/H3Op")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H3Op, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/H3Op")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H3Op, 0.0);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/H3Op")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_H3Op, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/H3Op")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_H3Op, 0.0);
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/H")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/H")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H, 0.0);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/H")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_H, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/H")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_H, 0.0);
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/H2O2")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H2O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/H2O2")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H2O2, 0.0);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/H2O2")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_H2O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/H2O2")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_H2O2, 0.0);
+
+// ========================================================================================================================================
+// ========================================================================================================================================
+	// TODO: check if Chemistry is Extended
+	if (G4MoleculeTable::Instance()->GetConfiguration("HO2"))
+		fMoleculeID_HO2 = G4MoleculeTable::Instance()->GetConfiguration("HO2")->GetMoleculeID();
+	if (G4MoleculeTable::Instance()->GetConfiguration("HO2m"))
+		fMoleculeID_HO2m = G4MoleculeTable::Instance()->GetConfiguration("HO2m")->GetMoleculeID();
+	if (G4MoleculeTable::Instance()->GetConfiguration("O2"))
+		fMoleculeID_O2 = G4MoleculeTable::Instance()->GetConfiguration("O2")->GetMoleculeID();
+	if (G4MoleculeTable::Instance()->GetConfiguration("O2m"))
+		fMoleculeID_O2m = G4MoleculeTable::Instance()->GetConfiguration("O2m")->GetMoleculeID();
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2, 0.0);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2, 0.0);
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2m")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2m")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2m, 0.0);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2m")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2m")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2m, 0.0);
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2, 0.0);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/O2")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/O2")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2, 0.0);
+
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2m")))
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2m")));
+	else
+		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2m, 0.0);
+	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/O2m")))
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/O2m")));
+	else
+		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2m, 0.0);
+// ========================================================================================================================================
+// ========================================================================================================================================
 
 	//----------------------------------------------------------------------------------------------
 	// Material of DNA residue volumes in which to score
@@ -368,6 +496,7 @@ G4double ScoreClusteredDNADamage::ConvertDoseThresholdToEnergy() {
 //--------------------------------------------------------------------------------------------------
 G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 {
+	fNumProcessHitsCalls++;
 	G4double edep = aStep->GetTotalEnergyDeposit(); // In eV;
 	fTotalEdep += edep; // running sum of energy deposition in entire volume
 
@@ -381,13 +510,9 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	// If this hit deposits energy (in sensitive DNA volume), update the appropriate energy deposition
 	// map
 	//----------------------------------------------------------------------------------------------
-	if (edep > 0) {
+	if (fIncludeDirectDamage && edep > 0) {
 		// G4Touchable provides access to parent volumes, etc.
 		G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
-
-		// Determine unique fiber ID number using copy ID of parent
-		fFiberID = touchable->GetCopyNumber(fParentIndexFiber);
-
 		// Determine unique voxel ID number using replica ID of parent volumes
 		if (fBuildNucleus) {
 			G4int voxIDZ = touchable->GetReplicaNumber(fParentIndexVoxelZ);
@@ -395,30 +520,24 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 			G4int voxIDY = touchable->GetReplicaNumber(fParentIndexVoxelY);
 			fVoxelID = voxIDZ + (fNumVoxelsPerSide*voxIDX) + (fNumVoxelsPerSide*fNumVoxelsPerSide*voxIDY);
 		}
-
+		// Determine unique fiber ID number using copy ID of parent
+		if (fNumFibers > 1)
+			fFiberID = touchable->GetCopyNumber(fParentIndexFiber);
 		//------------------------------------------------------------------------------------------
 		// Determine the indices defining the volume in which energy was deposited by parsing the
 		// copy number of the Physical Volume.
 		//------------------------------------------------------------------------------------------
-		G4int num_strand = -1;
-		G4int num_res = -1;
-		G4int num_nucleotide = -1;
-
+		// G4int volID = touchable->GetVolume()->GetCopyNo();
 		G4int volID = aStep->GetPreStepPoint()->GetPhysicalVolume()->GetCopyNo();
-		// G4int volID = touchable->GetVolume()->GetCopyNo(); // difference with other call?
-
-		num_strand = volID / 1000000;
-		num_res = (volID - (num_strand*1000000)) / 100000;
-		num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
-		// num_strand = volID / fParserStrand;
-		// num_res = (volID - (num_strand*fParserStrand)) / fParserResidue;
-		// num_nucleotide = volID - (num_strand*fParserStrand) - (num_res*fParserResidue);
+		G4int num_strand = volID / 1000000;
+		G4int num_res = (volID - (num_strand*1000000)) / 100000;
+		G4int num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
 
 		//------------------------------------------------------------------------------------------
 		// Use the DNA strand ID, residue ID, and nucleotide ID to increment the energy deposited
 		// in the appropriate energy deposition map. Maps are indexed as follows:
-		// First index specifies the DNA fibre
-		// Second index specifies someting to do with variance reduction / track splitting
+		// First index specifies the voxel
+		// Second index specifies DNA fibre
 		// Third index specifies the bp index
 		//------------------------------------------------------------------------------------------
 		if ( num_strand == 0 ){ // first strand
@@ -443,113 +562,96 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	// Indirect damage starting here
 	G4Track* aTrack = aStep->GetTrack();
 	G4int trackID = aTrack->GetTrackID();
+	if (fIncludeIndirectDamage && trackID < 0) { // chemical tracks
+		// G4Touchable provides access to parent volumes, etc.
+		G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
+		// Determine unique voxel ID number using replica ID of parent volumes
+		if (fBuildNucleus) {
+			G4int voxIDZ = touchable->GetReplicaNumber(fParentIndexVoxelZ);
+			G4int voxIDX = touchable->GetReplicaNumber(fParentIndexVoxelX);
+			G4int voxIDY = touchable->GetReplicaNumber(fParentIndexVoxelY);
+			fVoxelID = voxIDZ + (fNumVoxelsPerSide*voxIDX) + (fNumVoxelsPerSide*fNumVoxelsPerSide*voxIDY);
+		}
+		// Determine unique fiber ID number using copy ID of parent
+		if (fNumFibers > 1)
+			fFiberID = touchable->GetCopyNumber(fParentIndexFiber);
+		//------------------------------------------------------------------------------------------
+		// Determine the indices defining the volume in which energy was deposited by parsing the
+		// copy number of the Physical Volume.
+		//------------------------------------------------------------------------------------------
+		// G4int volID = touchable->GetVolume()->GetCopyNo();
+		G4int volID = aStep->GetPreStepPoint()->GetPhysicalVolume()->GetCopyNo();
+		G4int num_strand = volID / 1000000;
+		G4int num_res = (volID - (num_strand*1000000)) / 100000;
+		G4int num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
 
-	if ( trackID < 0 ) { // chemical tracks
-		// G4int OH_ID = G4MoleculeTable::Instance()->GetConfiguration("OH")->GetMoleculeID();
+		// Get molecule info
 		G4int moleculeID = GetMolecule(aTrack)->GetMoleculeID();
-		G4bool damaged = false;
 
-		if (moleculeID != fMoleculeID_OH){
-			// G4String moleculeName = GetMolecule(aTrack)->GetName();
-			// std::cout << "\tmoleculeID does not match moleculeID of OH*. moleculeName: " << moleculeName << std::endl;
-			// TODO: kill track?
-			return false;
-		}
-		else { // molecule is OH*
-			G4float prob_random = (float) std::rand()/RAND_MAX;
-			std::cout << "\tprob_random: " << prob_random << std::endl;
-			if ( prob_random <= 1.0 ) { // TODO: extract probability of inducing SB to parameter parser
-				std::cout << "\tDAMAGE INDUCED!" << std::endl;
-				damaged = true;
-			}
-		}
-		// damaged = true; // just for testing
+		// Determine if damage is inflicted
+		G4bool damaged = IsDamageInflicted(moleculeID, num_res);
+
 		// Record nucleotide damage.
 		if (damaged) {
-			G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
-
-			if (fBuildNucleus) {
-				G4int voxIDZ = touchable->GetReplicaNumber(fParentIndexVoxelZ);
-				G4int voxIDX = touchable->GetReplicaNumber(fParentIndexVoxelX);
-				G4int voxIDY = touchable->GetReplicaNumber(fParentIndexVoxelY);
-				fVoxelID = voxIDZ + (fNumVoxelsPerSide*voxIDX) + (fNumVoxelsPerSide*fNumVoxelsPerSide*voxIDY);
-			}
-			fFiberID = touchable->GetCopyNumber(fParentIndexFiber);
-			G4int volID = touchable->GetVolume()->GetCopyNo();
-
-			G4int num_strand = -1;
-			G4int num_res = -1;
-			G4int num_nucleotide = -1;
-
-			num_strand = volID / 1000000;
-			num_res = (volID - (num_strand*1000000)) / 100000;
-			num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
-
-			// G4int num_strand = volID / 1000000;
-			// G4int num_res = (volID - (num_strand*1000000)) / 100000;
-			// G4int num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
+			G4cout << "\tDAMAGE INDUCED!" << G4endl;
+			G4cout << "\teventID: " << GetEventID() << G4endl;
+			G4cout << "\tthreadID: " << G4Threading::G4GetThreadId() << G4endl;
 
 			// Do not record if backbone or base has already been "damaged" previously via indirect actions
 			if ( num_strand == 0 ) { // first strand
 				if (num_res == fVolIdPhosphate || num_res == fVolIdDeoxyribose) {
-					if (!ElementInVector(num_nucleotide, fIndicesSSB1_indirect)) {
+					if (!IsElementInVector(num_nucleotide, fIndicesSSB1_indirect)) {
 						fMapIndDamageStrand1Backbone[fVoxelID][fFiberID].push_back(num_nucleotide);
-						// std::cout << "\tfVoxelID: " << fVoxelID << std::endl;
-						// std::cout << "\tfFiberID: " << fFiberID << std::endl;
-						std::cout << "\tRECORDED SSB1! num_nucleotide: " << num_nucleotide << std::endl;
-						std::cout << "\tNumber of recorded indices in vector: " << fMapIndDamageStrand1Backbone[fVoxelID][fFiberID].size() << std::endl;
-						std::cout << "\tfThreadID: " << G4Threading::G4GetThreadId() << std::endl;
+						G4cout << "\tRECORDED SSB1! num_nucleotide: " << num_nucleotide << G4endl;
+						G4cout << "\tNumber of recorded indices in vector: " << fMapIndDamageStrand1Backbone[fVoxelID][fFiberID].size() << G4endl;
 					}
 					else {
-						std::cout << "\tALREADY DAMAGED SSB1! num_nucleotide: " << num_nucleotide << std::endl;
+						G4cout << "\tALREADY DAMAGED SSB1! num_nucleotide: " << num_nucleotide << G4endl;
 						return false;
 					}
 				}
 				else if (num_res == fVolIdBase) {
-					if (!ElementInVector(num_nucleotide, fIndicesBD1_indirect)) {
+					if (!IsElementInVector(num_nucleotide, fIndicesBD1_indirect)) {
 						fMapIndDamageStrand1Base[fVoxelID][fFiberID].push_back(num_nucleotide);
-						std::cout << "\tRECORDED BD1! num_nucleotide: " << num_nucleotide << std::endl;
-						std::cout << "\tNumber of recorded indices in vector: " << fMapIndDamageStrand1Base[fVoxelID][fFiberID].size() << std::endl;
-						std::cout << "\tfThreadID: " << G4Threading::G4GetThreadId() << std::endl;
+						G4cout << "\tRECORDED BD1! num_nucleotide: " << num_nucleotide << G4endl;
+						G4cout << "\tNumber of recorded indices in vector: " << fMapIndDamageStrand1Base[fVoxelID][fFiberID].size() << G4endl;
 					}
 					else {
-						std::cout << "\tALREADY DAMAGED BD1! num_nucleotide: " << num_nucleotide << std::endl;
+						G4cout << "\tALREADY DAMAGED BD1! num_nucleotide: " << num_nucleotide << G4endl;
 						return false;
 					}
 				}
 			}
 			else { // second strand
 				if (num_res == fVolIdPhosphate || num_res == fVolIdDeoxyribose) {
-					if (!ElementInVector(num_nucleotide, fIndicesSSB2_indirect)) {
+					if (!IsElementInVector(num_nucleotide, fIndicesSSB2_indirect)) {
 						fMapIndDamageStrand2Backbone[fVoxelID][fFiberID].push_back(num_nucleotide);
-						std::cout << "\tRECORDED SSB2! num_nucleotide: " << num_nucleotide << std::endl;
-						std::cout << "\tNumber of recorded indices in vector: " << fMapIndDamageStrand2Backbone[fVoxelID][fFiberID].size() << std::endl;
-						std::cout << "\tfThreadID: " << G4Threading::G4GetThreadId() << std::endl;
+						G4cout << "\tRECORDED SSB2! num_nucleotide: " << num_nucleotide << G4endl;
+						G4cout << "\tNumber of recorded indices in vector: " << fMapIndDamageStrand2Backbone[fVoxelID][fFiberID].size() << G4endl;
 					}
 					else {
-						std::cout << "\tALREADY DAMAGED SSB2! num_nucleotide: " << num_nucleotide << std::endl;
+						G4cout << "\tALREADY DAMAGED SSB2! num_nucleotide: " << num_nucleotide << G4endl;
 						return false;
 					}
 				}
 				else if (num_res == fVolIdBase) {
-					if (!ElementInVector(num_nucleotide, fIndicesBD2_indirect)) {
+					if (!IsElementInVector(num_nucleotide, fIndicesBD2_indirect)) {
 						fMapIndDamageStrand2Base[fVoxelID][fFiberID].push_back(num_nucleotide);
-						std::cout << "\tRECORDED BD2! num_nucleotide: " << num_nucleotide << std::endl;
-						std::cout << "\tNumber of recorded indices in vector: " << fMapIndDamageStrand2Base[fVoxelID][fFiberID].size() << std::endl;
-						std::cout << "\tfThreadID: " << G4Threading::G4GetThreadId() << std::endl;
+						G4cout << "\tRECORDED BD2! num_nucleotide: " << num_nucleotide << G4endl;
+						G4cout << "\tNumber of recorded indices in vector: " << fMapIndDamageStrand2Base[fVoxelID][fFiberID].size() << G4endl;
 					}
 					else {
-						std::cout << "\tALREADY DAMAGED BD2! num_nucleotide: " << num_nucleotide << std::endl;
+						G4cout << "\tALREADY DAMAGED BD2! num_nucleotide: " << num_nucleotide << G4endl;
 						return false;
 					}
 				}
 			}
-
-			// Kill track
-			aStep->GetTrack()->SetTrackStatus(fStopAndKill);
-			std::cout << "\tTrack KILLED! trackID: " << trackID << std::endl;
-			return true;
 		} // damaged
+		// Kill track whether the interaction induced damage or not
+		aStep->GetTrack()->SetTrackStatus(fStopAndKill);
+		G4cout << "\tTrack KILLED! trackID: " << trackID << G4endl;
+		G4cout << "\tProcessHits calls: " << fNumProcessHitsCalls << G4endl;
+		return true;
 	} // negative trackID
 
 	return false;
@@ -559,7 +661,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 //--------------------------------------------------------------------------------------------------
 // This helper method checks whether an element is in a vector.
 //--------------------------------------------------------------------------------------------------
-G4bool ScoreClusteredDNADamage::ElementInVector(G4int pElement, std::vector<G4int> pVector) {
+G4bool ScoreClusteredDNADamage::IsElementInVector(G4int pElement, std::vector<G4int> pVector) {
 	if (std::find(pVector.begin(), pVector.end(), pElement) != pVector.end())
 		return true;
 	else
@@ -568,21 +670,37 @@ G4bool ScoreClusteredDNADamage::ElementInVector(G4int pElement, std::vector<G4in
 
 
 //--------------------------------------------------------------------------------------------------
-// This helper method checks whether an indirect damage has been induced. TODO
+// This helper method checks whether an indirect damage has been induced given the moleculeID
 //--------------------------------------------------------------------------------------------------
-// G4bool ScoreClusteredDNADamage::IsDamageInflicted(G4int pMoleculeID, G4int pDNAVolumeID) {
-// 	G4int OH_ID = G4MoleculeTable::Instance()->GetConfiguration("OH")->GetMoleculeID();
-// 	fMoleculeDamageProb_SSB.emplace(OH_ID, 0.4);
-//
-// 	if (pDNAVolumeID == 0)
-// 	G4float prob_damage = fMoleculeDamageProb_SSB[pMoleculeID];
-//
-// 	// Generate random float between 0 and 1
-// 	G4float prob_random = (float) std::rand()/RAND_MAX;
-// 	std::cout << "\tprob_random: " << prob_random << std::endl;
-//
-//
-// }
+G4bool ScoreClusteredDNADamage::IsDamageInflicted(G4int pMoleculeID, G4int pDNAVolumeID) {
+	G4float prob_damage = 0.;
+
+	if ( fMoleculeDamageProb_SSB.find(pMoleculeID) == fMoleculeDamageProb_SSB.end() && fMoleculeDamageProb_BD.find(pMoleculeID) == fMoleculeDamageProb_BD.end()) {
+  	// pMoleculeID not found in fMoleculeDamageProb_SSB and fMoleculeDamageProb_BD
+		G4cout << "\tmoleculeID NOT LISTED: " << pMoleculeID << G4endl;
+		return false;
+	}
+
+	if (pDNAVolumeID == fVolIdPhosphate || pDNAVolumeID == fVolIdDeoxyribose)
+		prob_damage = fMoleculeDamageProb_SSB[pMoleculeID]; // returns 0 if pMoleculeID is not a "key" in the map
+	if (pDNAVolumeID == fVolIdBase)
+		prob_damage = fMoleculeDamageProb_BD[pMoleculeID]; // returns 0 if pMoleculeID is not a "key" in the map
+
+	if (prob_damage == 0.)
+		return false;
+
+	// Generate random float between 0 and 1
+	G4float prob_random = (float) std::rand()/RAND_MAX;
+
+	G4cout << "\tmoleculeID: " << pMoleculeID << G4endl;
+	G4cout << "\tprob_damage: " << prob_damage << G4endl;
+	G4cout << "\tprob_random: " << prob_random << G4endl;
+
+	if (prob_random <= prob_damage)
+		return true;
+	else
+		return false;
+}
 
 
 //--------------------------------------------------------------------------------------------------
@@ -644,18 +762,7 @@ void ScoreClusteredDNADamage::UserHookForEndOfRun() {
 	if (fScoreClusters) {
 		G4cout << "Complex DSB details have been written to: " << fFileComplexDSB << G4endl;
 		G4cout << "Non-DSB cluster details have been written to: " << fFileNonDSBCluster << G4endl;
-	}
-
-	// debugging
-	// G4cout << "\tSSB1-merged: " << G4endl;
-	// Print1DVectorContents(fIndicesSSB1);
-	// G4cout << "\tSSB2-merged: " << G4endl;
-	// Print1DVectorContents(fIndicesSSB2);
-	// G4cout << "\tBD1-merged: " << G4endl;
-	// Print1DVectorContents(fIndicesBD1);
-	// G4cout << "\tBD2-merged: " << G4endl;
-	// Print1DVectorContents(fIndicesBD2);
-
+	}	
 }
 
 
@@ -828,6 +935,7 @@ void ScoreClusteredDNADamage::AbsorbResultsFromWorkerScorer(TsVScorer* workerSco
 	// Absorb various worker thread data
 	fTotalEdep += myWorkerScorer->fTotalEdep;
 	fNumEvents += myWorkerScorer->fNumEvents;
+	fNumProcessHitsCalls += myWorkerScorer->fNumProcessHitsCalls;
 
     // Absorb the energy deposition maps from this worker
     if (!fRecordDamagePerEvent) {
@@ -835,13 +943,12 @@ void ScoreClusteredDNADamage::AbsorbResultsFromWorkerScorer(TsVScorer* workerSco
 	    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand2Backbone,myWorkerScorer->fMapEdepStrand2Backbone);
 	    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand1Base,myWorkerScorer->fMapEdepStrand1Base);
 	    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand2Base,myWorkerScorer->fMapEdepStrand2Base);
-	}
 
-	// TODO: inside fRecordDamagePerEvent condition?
-	AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand1Backbone,myWorkerScorer->fMapIndDamageStrand1Backbone);
-	AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand2Backbone,myWorkerScorer->fMapIndDamageStrand2Backbone);
-	AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand1Base,myWorkerScorer->fMapIndDamageStrand1Base);
-	AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand2Base,myWorkerScorer->fMapIndDamageStrand2Base);
+			AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand1Backbone,myWorkerScorer->fMapIndDamageStrand1Backbone);
+			AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand2Backbone,myWorkerScorer->fMapIndDamageStrand2Backbone);
+			AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand1Base,myWorkerScorer->fMapIndDamageStrand1Base);
+			AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand2Base,myWorkerScorer->fMapIndDamageStrand2Base);
+	}
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -882,7 +989,7 @@ void ScoreClusteredDNADamage::AbsorbDirDmgMapFromWorkerScorer(
 
 
 //--------------------------------------------------------------------------------------------------
-// This method transfers the contents of a map of energy depositions from the worker thread to the
+// This method transfers the contents of a map of indirect hits indices from the worker thread to the
 // master thread
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::AbsorbIndDmgMapFromWorkerScorer(
@@ -901,13 +1008,19 @@ void ScoreClusteredDNADamage::AbsorbIndDmgMapFromWorkerScorer(
 			G4int indexFiber = itFiber->first;
 			std::vector<G4int> workerMapFiber = itFiber->second;
 
+			// Print1DVectorContents(workerMapFiber); // debugging
+
 			// Loop over all base pairs fiber
 			std::vector<G4int>::iterator itBP = workerMapFiber.begin();
 			while (itBP != workerMapFiber.end()) {
 				G4int indexBP = *itBP;
 
 				// Increment master thread damage index map
-				masterMap[indexVoxel][indexFiber].push_back(indexBP);
+				if (!IsElementInVector(indexBP, masterMap[indexVoxel][indexFiber]))
+					masterMap[indexVoxel][indexFiber].push_back(indexBP);
+				else
+					fDoubleCountsII++;
+
 				itBP++;
 			}
 			itFiber++;
@@ -955,9 +1068,6 @@ void ScoreClusteredDNADamage::RecordDamage() {
 			fIndicesBD2_indirect = fMapIndDamageStrand2Base[iVoxel][iFiber];
 
 			// Merge and resolve damage yields from direct and indirect damage
-			// TODO: move toggle booleans to header and parameter file parser
-			G4bool fIncludeDirectDamage = true;
-			G4bool fIncludeIndirectDamage = true;
 			if (fIncludeDirectDamage && fIncludeIndirectDamage){
 				fIndicesSSB1 = MergeDamageIndices(fIndicesSSB1_direct, fIndicesSSB1_indirect);
 				fIndicesSSB2 = MergeDamageIndices(fIndicesSSB2_direct, fIndicesSSB2_indirect);
@@ -978,37 +1088,41 @@ void ScoreClusteredDNADamage::RecordDamage() {
 			}
 
 			// debugging
-			G4cout << "\tSSB1-indirect: " << G4endl;
-			Print1DVectorContents(fIndicesSSB1_indirect);
-			G4cout << "\tSSB1-direct: " << G4endl;
-			Print1DVectorContents(fIndicesSSB1_direct);
-			G4cout << "\tSSB1-merged: " << G4endl;
-			Print1DVectorContents(fIndicesSSB1);
-			G4cout << G4endl;
+			// G4cout << "\tSSB1-indirect: " << G4endl;
+			// Print1DVectorContents(fIndicesSSB1_indirect);
+			// G4cout << "\tSSB1-direct: " << G4endl;
+			// Print1DVectorContents(fIndicesSSB1_direct);
+			// G4cout << "\tSSB1-merged: " << G4endl;
+			// Print1DVectorContents(fIndicesSSB1);
+			// G4cout << G4endl;
+			//
+			// G4cout << "\tSSB2-indirect: " << G4endl;
+			// Print1DVectorContents(fIndicesSSB2_indirect);
+			// G4cout << "\tSSB2-direct: " << G4endl;
+			// Print1DVectorContents(fIndicesSSB2_direct);
+			// G4cout << "\tSSB2-merged: " << G4endl;
+			// Print1DVectorContents(fIndicesSSB2);
+			// G4cout << G4endl;
+			//
+			// G4cout << "\tBD1-indirect: " << G4endl;
+			// Print1DVectorContents(fIndicesBD1_indirect);
+			// G4cout << "\tBD1-direct: " << G4endl;
+			// Print1DVectorContents(fIndicesBD1_direct);
+			// G4cout << "\tBD1-merged: " << G4endl;
+			// Print1DVectorContents(fIndicesBD1);
+			// G4cout << G4endl;
+			//
+			// G4cout << "\tBD2-indirect: " << G4endl;
+			// Print1DVectorContents(fIndicesBD2_indirect);
+			// G4cout << "\tBD2-direct: " << G4endl;
+			// Print1DVectorContents(fIndicesBD2_direct);
+			// G4cout << "\tBD2-merged: " << G4endl;
+			// Print1DVectorContents(fIndicesBD2);
+			// G4cout << G4endl;
 
-			G4cout << "\tSSB2-indirect: " << G4endl;
-			Print1DVectorContents(fIndicesSSB2_indirect);
-			G4cout << "\tSSB2-direct: " << G4endl;
-			Print1DVectorContents(fIndicesSSB2_direct);
-			G4cout << "\tSSB2-merged: " << G4endl;
-			Print1DVectorContents(fIndicesSSB2);
-			G4cout << G4endl;
-
-			G4cout << "\tBD1-indirect: " << G4endl;
-			Print1DVectorContents(fIndicesBD1_indirect);
-			G4cout << "\tBD1-direct: " << G4endl;
-			Print1DVectorContents(fIndicesBD1_direct);
-			G4cout << "\tBD1-merged: " << G4endl;
-			Print1DVectorContents(fIndicesBD1);
-			G4cout << G4endl;
-
-			G4cout << "\tBD2-indirect: " << G4endl;
-			Print1DVectorContents(fIndicesBD2_indirect);
-			G4cout << "\tBD2-direct: " << G4endl;
-			Print1DVectorContents(fIndicesBD2_direct);
-			G4cout << "\tBD2-merged: " << G4endl;
-			Print1DVectorContents(fIndicesBD2);
-			G4cout << G4endl;
+			G4cout << "\tDouble counts DI: " << fDoubleCountsDI << G4endl;
+			G4cout << "\tDouble counts II: " << fDoubleCountsII << G4endl;
+			G4cout << "\tProcessHits calls: " << fNumProcessHitsCalls << G4endl;
 
 			// Process SSBs in both strands to determine if there are any DSB
 			fIndicesDSB = RecordDSB();
@@ -1057,15 +1171,17 @@ std::vector<G4int> ScoreClusteredDNADamage::MergeDamageIndices(std::vector<G4int
 	std::vector<G4int> indicesDamage_merged;
 
 	for (G4int element : pDamageIndices1) {
-		if (!ElementInVector(element, indicesDamage_merged)) {
+		if (!IsElementInVector(element, indicesDamage_merged))
 			indicesDamage_merged.push_back(element);
-		}
+		else
+			fDoubleCountsDI++;
 	}
 
 	for (G4int element : pDamageIndices2) {
-		if (!ElementInVector(element, indicesDamage_merged)) {
+		if (!IsElementInVector(element, indicesDamage_merged))
 			indicesDamage_merged.push_back(element);
-		}
+		else
+			fDoubleCountsDI++;
 	}
 
 	return indicesDamage_merged;
@@ -1116,6 +1232,9 @@ void ScoreClusteredDNADamage::ResetDamageCounterVariables() {
 	fTotalDSB = 0;
 	fTotalComplexDSB = 0;
 	fTotalNonDSBCluster = 0;
+
+	fDoubleCountsDI = 0;
+	fDoubleCountsII = 0;
 }
 
 
@@ -1511,9 +1630,9 @@ void ScoreClusteredDNADamage::CreateFakeEnergyMap() {
 }
 
 void ScoreClusteredDNADamage::Print1DVectorContents(std::vector<G4int> pVector) {
-	std::cout << "\t";
+	G4cout << "\t";
 	for (G4int element : pVector) {
-		std::cout << element << ' ';
+		G4cout << element << ' ';
 	}
-	std::cout << std::endl;
+	G4cout << G4endl;
 }

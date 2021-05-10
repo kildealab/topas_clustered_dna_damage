@@ -60,7 +60,9 @@ private:
     //--------------------------------------------------------------------------------------------------
     // This helper method checks whether an element is in a vector.
     //--------------------------------------------------------------------------------------------------
-    G4bool ElementInVector(G4int, std::vector<G4int>);
+    G4bool IsElementInVector(G4int, std::vector<G4int>);
+
+    G4bool IsDamageInflicted(G4int, G4int);
 
     //----------------------------------------------------------------------------------------------
     // Erase contents of various output files (and their corresponding header files)
@@ -199,10 +201,13 @@ private:
     G4bool fRecordDamagePerEvent;
     G4bool fRecordDamagePerFiber;
     G4bool fOutputHeaders;
+    G4bool fIncludeDirectDamage;
+    G4bool fIncludeIndirectDamage;
 
     // Running counters
     G4int fNumEvents;
     G4double fTotalEdep;
+    G4int fNumProcessHitsCalls;
 
     G4double fComponentVolume;
 
@@ -268,6 +273,10 @@ private:
     G4int fTotalDSB;
     G4int fTotalComplexDSB;
     G4int fTotalNonDSBCluster;
+
+    // Double counts (D-direct, I-indirect)
+    G4int fDoubleCountsDI;
+    G4int fDoubleCountsII; // indirect counts from different threads
 
     // Constant variables to identify damage types
     static const G4int fIdSSB = 0;

@@ -2,17 +2,24 @@
 # Geometry
 #---------------------------------------------------------------------------------------------------
 # World
-d:Ge/World/HLX=5. um
-d:Ge/World/HLY=5. um
-d:Ge/World/HLZ=5. um
-b:Ge/World/Invisible="True"
+d:Ge/World/HLX=10. um
+d:Ge/World/HLY=10. um
+d:Ge/World/HLZ=10. um
+s:Ge/World/Material = "Vacuum"
+
+# Spherical cell with volume ~2000 um^3, filled with water
+s:Ge/Cell/Type="TsSphere"
+s:Ge/Cell/Parent="World"
+d:Ge/Cell/RMax = 7.8 um
+d:Ge/Cell/RMin = 0. um
+s:Ge/Cell/Material = "G4_WATER"
 
 # DNA
 s:Ge/MyDNA/Type="VoxelizedNuclearDNA"
-s:Ge/MyDNA/Parent="World"
+s:Ge/MyDNA/Parent="Cell"
 s:Ge/MyDNA/Material="G4_WATER"
 b:Ge/MyDNA/BuildNucleus = "True" # If true, build voxelized cubic nucleus. If false, build single chromatin fiber
-i:Ge/MyDNA/NumVoxelsPerSide = 25 # Number of voxels per side of cubic nucleus
+i:Ge/MyDNA/NumVoxelsPerSide = 26 # Number of voxels per side of cubic nucleus
 d:Ge/MyDNA/VoxelSideLength = 150 nm # Modifying this value may break the geometry
 b:Ge/MyDNA/FillFibersWithDNA = "True" # Either fill chromatin fibers with DNA or generate empty fibers
 i:Ge/MyDNA/DnaNumNucleosomePerFiber = 90 # Max 90
@@ -44,20 +51,30 @@ dc:Gr/ViewA/Phi = 45 deg
 b:Gr/ViewA/IncludeStepPoints = "True" # Visualization of discrete steps in particle tracks
 
 # Component styling
-# Bounding volume
+# World
+b:Ge/World/Invisible="True"
+
+# Cell
+iv:Gr/Color/TransparentWhite =  4 255 255 255 25
+s:Ge/Cell/Color = "TransparentWhite"
+s:Ge/Cell/DrawingStyle = "Solid"
+b:Ge/Cell/Invisible="False"
+
+# Nucleus
 s:Ge/MyDNA/Color = "blue"
 s:Ge/MyDNA/DrawingStyle = "Wireframe"
-b:Ge/MyDNA/Invisible = "True"
+b:Ge/MyDNA/Invisible = "False"
 
 # Voxels
 s:Ge/MyDNA/Voxel/DrawingStyle = "Wireframe"
-s:Ge/MyDNA/Voxel/Color = "white"
+s:Ge/MyDNA/Voxel/Color = "blue"
 b:Ge/MyDNA/Voxel/Invisible = "True"
 
 # Chromatin fibers
-iv:Gr/Color/TransparentWhite =  4 255 255 255 77
+iv:Gr/Color/FiberColor =  3 175 159 201
 s:Ge/MyDNA/Fiber/DrawingStyle = "Solid"
-s:Ge/MyDNA/Fiber/Color = "TransparentWhite"
+s:Ge/MyDNA/Fiber/Color = "FiberColor"
+b:Ge/MyDNA/Fiber/Invisible = Ge/MyDNA/FillFibersWithDNA # If filling fibers, don't show cylindrical shell
 
 # Histone protein complexes
 s:Ge/MyDNA/Histone/DrawingStyle = "Solid"
@@ -95,7 +112,7 @@ d:Ph/Default/EMRangeMin = 10. eV # minimum for EM tables
 #---------------------------------------------------------------------------------------------------
 # Surface source (particles directed inwards with random orientation)
 s:So/Example/Type = "VolumeOrSurface"
-s:So/Example/Component = "MyDNA"
+s:So/Example/Component = "Cell"
 s:So/Example/DistributePrimariesAtVolumeRegion = "surface"
 s:So/Example/DirectPrimariesTo = "inside"
 ic:So/Example/NumberOfHistoriesInRun = 50
@@ -110,7 +127,7 @@ u:So/Example/BeamEnergySpread = 0.
 # s:So/Example/BeamEnergySpectrumType = "Discrete"
 # includeFile = spectra/energy_bins.txt
 # includeFile = spectra/spectrum_n1MeV_inter_proton.txt
-# includeFile = from relative_doses
+# includeFile = relative_doses/reldose_n1MeV_inter_proton.txt
 
 #---------------------------------------------------------------------------------------------------
 # Clustered DNA damage scorer
