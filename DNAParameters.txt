@@ -117,8 +117,8 @@ b:Ph/Default/DeexcitationIgnoreCut = "True"
 # Surface source (particles directed inwards with random orientation)
 s:So/Example/Type = "VolumeOrSurface"
 s:So/Example/Component = "Cell" 
-s:So/Example/DistributePrimariesAtVolumeRegion = "surface"
-s:So/Example/DirectPrimariesTo = "inside"
+s:So/Example/DistributePrimariesAtVolumeRegion = "volume"
+s:So/Example/DirectPrimariesTo = "isotropic"
 ic:So/Example/NumberOfHistoriesInRun = 50
 i:Ts/ShowHistoryCountAtInterval = 10
 
