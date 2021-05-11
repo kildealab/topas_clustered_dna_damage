@@ -13,11 +13,13 @@
 #define VoxelizedNuclearDNA_hh
 
 #include "TsVGeometryComponent.hh"
-#include "GeoManagerV2.hh"
 
 #include <map>
 #include "G4VSolid.hh"
 #include "G4LogicalVolume.hh"
+#include "G4Orb.hh"
+#include "GeoCalculationV2.hh"
+
 
 
 struct DNAPlacementData;

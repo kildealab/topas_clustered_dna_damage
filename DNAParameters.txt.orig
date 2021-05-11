@@ -126,8 +126,8 @@ b:Ph/Default/DeexcitationIgnoreCut = "True"
 s:So/Example/Type = "VolumeOrSurface"
 <<<<<<< HEAD
 s:So/Example/Component = "Cell"
-s:So/Example/DistributePrimariesAtVolumeRegion = "volume"
-s:So/Example/DirectPrimariesTo = "isotropic"
+s:So/Example/DistributePrimariesAtVolumeRegion = "surface"
+s:So/Example/DirectPrimariesTo = "inside"
 =======
 s:So/Example/Component = "Cell" 
 s:So/Example/DistributePrimariesAtVolumeRegion = "volume"
