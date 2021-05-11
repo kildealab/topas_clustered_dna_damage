@@ -31,7 +31,6 @@
 #include "G4UnionSolid.hh"
 #include "G4ThreeVector.hh"
 
-#include "G4Orb.hh"
 #include "G4Tubs.hh"
 #include "G4VisAttributes.hh"
 #include "G4Colour.hh"
