@@ -12,7 +12,6 @@
 //**************************************************************************************************
 
 #include "VoxelizedNuclearDNA.hh"
-#include "GeoManagerV2.hh"
 #include "GeoCalculationV2.hh"
 
 #include "TsParameterManager.hh"
@@ -657,8 +656,7 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* VoxelizedNuclearDNA::CreateN
     if(fSugarTHFRadius==-1 || fSugarTMPRadius==-1 || fBaseRadius==-1)
     {
         G4cerr<<"************************************************************"<<G4endl;
-        G4cerr<<"GeoVolumeV2::CreateNucleosomeCuttedSolidsAndLogicals: fSugarTHFRadius, "
-            << "fSugarTMPRadius or fBaseRadius were not set. Fatal error."<<G4endl;
+        G4cerr<<"fSugarTHFRadius, fSugarTMPRadius or fBaseRadius were not set. Fatal error."<<G4endl;
         G4cerr<<"************************************************************"<<G4endl;
         std::exit(EXIT_FAILURE);
     }

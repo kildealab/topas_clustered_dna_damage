@@ -625,7 +625,7 @@ DNAPosData* GeoCalculationV2::CalculateDNAPosition(G4int histoneNum,
 // nucleosomes. Key = G4ThreeVector of coordinates, Value = radius of the volume (hydration shell).
 // Input parameter: pointer to a DNAPosData object created by CalculateDNAPosition().
 // Output: a map of coordinates:radius pairs that is used by 
-//     GeoVolume::CreateNucleosomeCuttedSolidsAndLogicals()
+//     VoxelizedNuclearDNA::CreateNucleosomeCuttedSolidsAndLogicals()
 // NOTE: it is the hydration shell radius that is used.
 // Map size = 3600 (3 nucleosomes x 200 bp/nucl x 6 volumes/bp)
 //--------------------------------------------------------------------------------------------------

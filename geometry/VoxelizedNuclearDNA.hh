@@ -13,7 +13,6 @@
 #define VoxelizedNuclearDNA_hh
 
 #include "TsVGeometryComponent.hh"
-#include "GeoManagerV2.hh"
 
 #include <map>
 #include "G4VSolid.hh"
