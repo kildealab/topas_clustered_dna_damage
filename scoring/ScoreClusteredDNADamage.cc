@@ -344,50 +344,62 @@ void ScoreClusteredDNADamage::ResolveParams() {
 // ========================================================================================================================================
 // ========================================================================================================================================
 	// TODO: check if Chemistry is Extended
-	if (G4MoleculeTable::Instance()->GetConfiguration("HO2"))
-		fMoleculeID_HO2 = G4MoleculeTable::Instance()->GetConfiguration("HO2")->GetMoleculeID();
-	if (G4MoleculeTable::Instance()->GetConfiguration("HO2m"))
-		fMoleculeID_HO2m = G4MoleculeTable::Instance()->GetConfiguration("HO2m")->GetMoleculeID();
-	if (G4MoleculeTable::Instance()->GetConfiguration("O2"))
-		fMoleculeID_O2 = G4MoleculeTable::Instance()->GetConfiguration("O2")->GetMoleculeID();
-	if (G4MoleculeTable::Instance()->GetConfiguration("O2m"))
-		fMoleculeID_O2m = G4MoleculeTable::Instance()->GetConfiguration("O2m")->GetMoleculeID();
+	// try (G4MoleculeTable::Instance()->GetConfiguration("HO2") != NULL) {
+	// 	fMoleculeID_HO2 = G4MoleculeTable::Instance()->GetConfiguration("HO2")->GetMoleculeID();
+	//
+	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2")))
+	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2")));
+	// 	else
+	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2, 0.0);
+	//
+	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2")))
+	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2")));
+	// 	else
+	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2, 0.0);
+	// }
 
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2")));
-	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2, 0.0);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2")));
-	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2, 0.0);
+	// if (G4MoleculeTable::Instance()->GetConfiguration("HO2m") != NULL) {
+	// 	fMoleculeID_HO2m = G4MoleculeTable::Instance()->GetConfiguration("HO2m")->GetMoleculeID();
+	//
+	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2m")))
+	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2m")));
+	// 	else
+	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2m, 0.0);
+	//
+	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2m")))
+	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2m")));
+	// 	else
+	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2m, 0.0);
+	// }
+	//
+	// if (G4MoleculeTable::Instance()->GetConfiguration("O2") != NULL) {
+	// 	fMoleculeID_O2 = G4MoleculeTable::Instance()->GetConfiguration("O2")->GetMoleculeID();
+	//
+	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2")))
+	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2")));
+	// 	else
+	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2, 0.0);
+	//
+	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/O2")))
+	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/O2")));
+	// 	else
+	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2, 0.0);
+	// }
+	//
+	// if (G4MoleculeTable::Instance()->GetConfiguration("O2m") != NULL) {
+	// 	fMoleculeID_O2m = G4MoleculeTable::Instance()->GetConfiguration("O2m")->GetMoleculeID();
+	//
+	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2m")))
+	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2m")));
+	// 	else
+	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2m, 0.0);
+	//
+	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/O2m")))
+	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/O2m")));
+	// 	else
+	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2m, 0.0);
+	// }
 
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2m")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2m")));
-	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2m, 0.0);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2m")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2m")));
-	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2m, 0.0);
-
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2")));
-	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2, 0.0);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/O2")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/O2")));
-	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2, 0.0);
-
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2m")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2m")));
-	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2m, 0.0);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/O2m")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/O2m")));
-	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2m, 0.0);
 // ========================================================================================================================================
 // ========================================================================================================================================
 
@@ -762,7 +774,7 @@ void ScoreClusteredDNADamage::UserHookForEndOfRun() {
 	if (fScoreClusters) {
 		G4cout << "Complex DSB details have been written to: " << fFileComplexDSB << G4endl;
 		G4cout << "Non-DSB cluster details have been written to: " << fFileNonDSBCluster << G4endl;
-	}	
+	}
 }
 
 
@@ -1120,9 +1132,9 @@ void ScoreClusteredDNADamage::RecordDamage() {
 			// Print1DVectorContents(fIndicesBD2);
 			// G4cout << G4endl;
 
-			G4cout << "\tDouble counts DI: " << fDoubleCountsDI << G4endl;
-			G4cout << "\tDouble counts II: " << fDoubleCountsII << G4endl;
-			G4cout << "\tProcessHits calls: " << fNumProcessHitsCalls << G4endl;
+			// G4cout << "\tDouble counts DI: " << fDoubleCountsDI << G4endl;
+			// G4cout << "\tDouble counts II: " << fDoubleCountsII << G4endl;
+			// G4cout << "\tProcessHits calls: " << fNumProcessHitsCalls << G4endl;
 
 			// Process SSBs in both strands to determine if there are any DSB
 			fIndicesDSB = RecordDSB();
