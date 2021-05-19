@@ -26,7 +26,7 @@
 // Used in RecordClusteredDNADamage().
 //--------------------------------------------------------------------------------------------------
 struct DamageCluster {
-	DamageCluster() : numSSB(0), numBD(0), numDSB(0), start(0), end(0), size(0){}
+	DamageCluster() : numSSB(0), numBD(0), numDSB(0), start(0), end(0), size(0), numStrand1(0), numStrand2(0){}
 
 	G4int numSSB; // # of SSB in cluster
 	G4int numBD; // # of base damages in cluster
@@ -35,6 +35,9 @@ struct DamageCluster {
 	G4int start; // starting bp index of cluster
 	G4int end; // ending bp index of cluster
 	G4int size; // bp range of cluster (end-start+1)
+
+	G4int numStrand1; // number of damage lesions in strand 1
+	G4int numStrand2; // number of damage lesions in strand 2
 };
 
 
@@ -58,6 +61,8 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fTotalDSB = 0;
 	fTotalComplexDSB = 0;
 	fTotalNonDSBCluster = 0;
+	fTotalNonDSBClusterTandem = 0;
+	fTotalNonDSBClusterBistranded = 0;
 
 	// Run tracking
 	fNumEvents = 0;
@@ -115,6 +120,8 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	if (fScoreClusters) {
 		fNtuple->RegisterColumnI(&fTotalComplexDSB, "Complex DSBs"); // Number of Complex DSB caused by this primary particle
 		fNtuple->RegisterColumnI(&fTotalNonDSBCluster, "Non-DSB clusters"); // Number of Non-DSB Clusters caused by this primary particle
+		fNtuple->RegisterColumnI(&fTotalNonDSBClusterTandem, "Non-DSB clusters (tandem)"); // Number of tandem (single stranded) Non-DSB Clusters caused by this primary particle
+		fNtuple->RegisterColumnI(&fTotalNonDSBClusterBistranded, "Non-DSB clusters (bistranded)"); // Number of bistranded Non-DSB Clusters caused by this primary particle
 	}
 }
 
@@ -617,6 +624,7 @@ void ScoreClusteredDNADamage::OutputNonDSBClusterToFile() {
 		outHeader << "Total # of damages" << fDelimiter;
 		outHeader << "# of SSB" << fDelimiter;
 		outHeader << "# of BD" << G4endl;
+		outHeader << "Bistranded" << G4endl;
 		outHeader.close();
 	}
 
@@ -639,6 +647,7 @@ void ScoreClusteredDNADamage::OutputNonDSBClusterToFile() {
 		outFile << fNonDSBClusterNumDamage[i] << fDelimiter;
 		outFile << fNonDSBClusterNumSSB[i] << fDelimiter;
 		outFile << fNonDSBClusterNumBD[i] << G4endl;
+		outFile << fNonDSBClusterBistranded[i] << G4endl;
 	}
 	outFile.close();
 }
@@ -905,7 +914,7 @@ void ScoreClusteredDNADamage::RecordClusteredDamage()
 	}
 
 	 // start iterating at second index (clusters contain > 1 damage)
-	std::vector<std::array<G4int,2>>::iterator site = fIndicesSimple.begin()+1;
+	std::vector<std::array<G4int,3>>::iterator site = fIndicesSimple.begin()+1;
 
 	DamageCluster cluster;
 
@@ -914,21 +923,21 @@ void ScoreClusteredDNADamage::RecordClusteredDamage()
 
 	// Loop over all damages arranged in order along the strand (SSBs, BDs, and DSBs)
 	while (site != fIndicesSimple.end()) {
-		std::array<G4int,2> sitePrev = *(site-1); // previous damage site
-		std::array<G4int,2> siteCur = *site; // current damage site
+		std::array<G4int,3> sitePrev = *(site-1); // previous damage site
+		std::array<G4int,3> siteCur = *site; // current damage site
 
 		// If damage sites are close enough to form a cluster
 		if ((siteCur[0]-sitePrev[0]) <= fThresDistForCluster) {
 			// A new cluster is being formed, so the "previous" damage must be added to the start
 			// of the cluster
 			if (newCluster) {
-				AddDamageToCluster(cluster,sitePrev[0],sitePrev[1],newCluster);
+				AddDamageToCluster(cluster,sitePrev[0],sitePrev[1],sitePrev[2],newCluster);
 				newCluster = false;
 				buildingCluster = true;
 			}
 
 			// Add the current damage to the cluster
-			AddDamageToCluster(cluster,siteCur[0],siteCur[1],newCluster);
+			AddDamageToCluster(cluster,siteCur[0],siteCur[1],siteCur[2],newCluster);
 		}
 		// Damage sites are too far away to form a cluster
 		else {
@@ -953,7 +962,7 @@ void ScoreClusteredDNADamage::RecordClusteredDamage()
 // Add a new DNA damage site to a cluster.
 //--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::AddDamageToCluster(DamageCluster& cluster, G4int damageSite, 
-												G4int damageType, G4bool newCluster) {
+												G4int damageType, G4int strand, G4bool newCluster) {
 	// If this cluster is a new cluster, set the new damage as the start site. Otherwise, set the 
 	// new damage as the end site.
 	if (newCluster) {
@@ -982,6 +991,25 @@ void ScoreClusteredDNADamage::AddDamageToCluster(DamageCluster& cluster, G4int d
 		G4cout << "An error has arisen while scoring clustered DNA damage." << G4endl;
 		G4cout << "The following integer damage label is unrecognized:" << G4endl;
 		G4cout << damageType << G4endl;
+		exit(0);
+	}
+
+	// Increment the correct strand counter for this cluster
+	if (strand == 0) {
+		cluster.numStrand1++;
+	}
+	else if (strand == 1) {
+		cluster.numStrand2++;
+	}
+	else if (strand == 2) {
+		cluster.numStrand1++;
+		cluster.numStrand2++;
+	}
+	// Throw an error if an unrecognized strand ID is specified
+	else {
+		G4cout << "An error has arisen while scoring clustered DNA damage." << G4endl;
+		G4cout << "The following integer strand ID is unsupported:" << G4endl;
+		G4cout << strand << G4endl;
 		exit(0);
 	}
 }
@@ -1019,6 +1047,15 @@ void ScoreClusteredDNADamage::RecordCluster(DamageCluster& cluster) {
 		fNonDSBClusterNumBD.push_back(cluster.numBD);
 		fNonDSBClusterNumDamage.push_back(cluster.numSSB + cluster.numBD);
 
+		if (cluster.numStrand1 > 0 && cluster.numStrand2 > 0){
+			fNonDSBClusterBistranded.push_back(1);
+			fTotalNonDSBClusterBistranded++;
+		}
+		else {
+			fNonDSBClusterBistranded.push_back(0);
+			fTotalNonDSBClusterTandem++;
+		}
+
 		fTotalNonDSBCluster++;
 
 		cluster = DamageCluster();
@@ -1031,9 +1068,9 @@ void ScoreClusteredDNADamage::RecordCluster(DamageCluster& cluster) {
 // of all damges in a DNA fibre (both strands). Each vector element is a 2-element array containing
 // (i) the bp index of the damage and (ii) an integer indicating the type of damage.
 //--------------------------------------------------------------------------------------------------
-std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() {
+std::vector<std::array<G4int,3>> ScoreClusteredDNADamage::CombineSimpleDamage() {
 	// G4cout << "COMBINING SIMPLE DAMAGE" << G4endl;
-	std::vector<std::array<G4int,2>> indicesSimple;
+	std::vector<std::array<G4int,3>> indicesSimple;
 
 	// Fake data for testing
 	// fIndicesSSB1 = {3,4,5,7,9};
@@ -1045,16 +1082,16 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 	// SSBs in strand 1
 	std::vector<G4int>::iterator itSSB1 = fIndicesSSB1.begin();
 	while (itSSB1 != fIndicesSSB1.end()) {
-		indicesSimple.push_back({*itSSB1,fIdSSB});
+		indicesSimple.push_back({*itSSB1,fIdSSB,0});
 		itSSB1++;
 	}
 
 	// BDs in strand 1
 	std::vector<G4int>::iterator itBD1 = fIndicesBD1.begin();
-	std::vector<std::array<G4int,2>>::iterator itSimple = indicesSimple.begin();
+	std::vector<std::array<G4int,3>>::iterator itSimple = indicesSimple.begin();
 	while (itBD1 != fIndicesBD1.end() && itSimple != indicesSimple.end()) {
 		if (*itBD1 < (*itSimple)[0]) {
-			itSimple = indicesSimple.insert(itSimple,{*itBD1,fIdBD});
+			itSimple = indicesSimple.insert(itSimple,{*itBD1,fIdBD,0});
 			itBD1++;
 		}
 		else {
@@ -1062,7 +1099,7 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 		}
 	}
 	while (itBD1 != fIndicesBD1.end()) {
-		indicesSimple.push_back({*itBD1,fIdBD});
+		indicesSimple.push_back({*itBD1,fIdBD,0});
 		itBD1++;
 	}
 
@@ -1071,7 +1108,7 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 	itSimple = indicesSimple.begin();
 	while (itSSB2 != fIndicesSSB2.end() && itSimple != indicesSimple.end()) {
 		if (*itSSB2 < (*itSimple)[0]) {
-			itSimple = indicesSimple.insert(itSimple,{*itSSB2,fIdSSB});
+			itSimple = indicesSimple.insert(itSimple,{*itSSB2,fIdSSB,1});
 			itSSB2++;
 		}
 		else {
@@ -1079,7 +1116,7 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 		}
 	}
 	while (itSSB2 != fIndicesSSB2.end()) {
-		indicesSimple.push_back({*itSSB2,fIdSSB});
+		indicesSimple.push_back({*itSSB2,fIdSSB,1});
 		itSSB2++;
 	}
 
@@ -1088,7 +1125,7 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 	itSimple = indicesSimple.begin();
 	while (itBD2 != fIndicesBD2.end() && itSimple != indicesSimple.end()) {
 		if (*itBD2 < (*itSimple)[0]) {
-			itSimple = indicesSimple.insert(itSimple,{*itBD2,fIdBD});
+			itSimple = indicesSimple.insert(itSimple,{*itBD2,fIdBD,1});
 			itBD2++;
 		}
 		else {
@@ -1096,7 +1133,7 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 		}
 	}
 	while (itBD2 != fIndicesBD2.end()) {
-		indicesSimple.push_back({*itBD2,fIdBD});
+		indicesSimple.push_back({*itBD2,fIdBD,1});
 		itBD2++;
 	}
 
@@ -1105,7 +1142,7 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 	itSimple = indicesSimple.begin();
 	while (itDSB != fIndicesDSB.end() && itSimple != indicesSimple.end()) {
 		if (*itDSB < (*itSimple)[0]) {
-			itSimple = indicesSimple.insert(itSimple,{*itDSB,fIdDSB});
+			itSimple = indicesSimple.insert(itSimple,{*itDSB,fIdDSB,2});
 			itDSB++;
 		}
 		else {
@@ -1113,7 +1150,7 @@ std::vector<std::array<G4int,2>> ScoreClusteredDNADamage::CombineSimpleDamage() 
 		}
 	}
 	while (itDSB != fIndicesDSB.end()) {
-		indicesSimple.push_back({*itDSB,fIdDSB});
+		indicesSimple.push_back({*itDSB,fIdDSB,2});
 		itDSB++;
 	}
 

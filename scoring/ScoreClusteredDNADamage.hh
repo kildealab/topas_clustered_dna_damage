@@ -135,7 +135,7 @@ private:
     //----------------------------------------------------------------------------------------------
     // Add a new DNA damage site to a cluster
     //----------------------------------------------------------------------------------------------
-    void AddDamageToCluster(DamageCluster&, G4int, G4int, G4bool);
+    void AddDamageToCluster(DamageCluster&, G4int, G4int, G4int, G4bool);
 
     //----------------------------------------------------------------------------------------------
     // Add the details of a finalized DNA damage cluster to the appropriate member variables.
@@ -146,7 +146,7 @@ private:
     // Combine class member vectors containing various types of damages into a single, ordered,
     // vector of all damges in a DNA fibre (both strands).
     //----------------------------------------------------------------------------------------------
-    std::vector<std::array<G4int,2>> CombineSimpleDamage();
+    std::vector<std::array<G4int,3>> CombineSimpleDamage();
 
     //----------------------------------------------------------------------------------------------
     // Calculate the order of magnitude (base 10) of a positive integer value.
@@ -234,6 +234,8 @@ private:
     G4int fTotalDSB;
     G4int fTotalComplexDSB;
     G4int fTotalNonDSBCluster;
+    G4int fTotalNonDSBClusterTandem;
+    G4int fTotalNonDSBClusterBistranded;
     
     // Constant variables to identify damage types
     static const G4int fIdSSB = 0;
@@ -260,7 +262,7 @@ private:
     std::vector<G4int>  fIndicesDSB;
 
     // Clustered damage handling
-    std::vector<std::array<G4int,2>> fIndicesSimple; // first # is bp index, second # is 0 or 1 to represent SSB or BD
+    std::vector<std::array<G4int,3>> fIndicesSimple; // first # is bp index, second # is 0 or 1 to represent SSB or BD
     
     G4String fFileComplexDSB;
     std::vector<G4int> fComplexDSBSizes; // Vector of lengths of complex DSB (in # of bp)
@@ -274,5 +276,6 @@ private:
     std::vector<G4int> fNonDSBClusterNumSSB;
     std::vector<G4int> fNonDSBClusterNumBD;
     std::vector<G4int> fNonDSBClusterNumDamage;
+    std::vector<G4int> fNonDSBClusterBistranded;
 };
 #endif
