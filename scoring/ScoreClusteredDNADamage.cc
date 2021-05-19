@@ -623,7 +623,7 @@ void ScoreClusteredDNADamage::OutputNonDSBClusterToFile() {
 		outHeader << "Size (bp)" << fDelimiter;
 		outHeader << "Total # of damages" << fDelimiter;
 		outHeader << "# of SSB" << fDelimiter;
-		outHeader << "# of BD" << G4endl;
+		outHeader << "# of BD" << fDelimiter;
 		outHeader << "Bistranded" << G4endl;
 		outHeader.close();
 	}
@@ -646,7 +646,7 @@ void ScoreClusteredDNADamage::OutputNonDSBClusterToFile() {
 		outFile << fNonDSBClusterSizes[i] << fDelimiter;
 		outFile << fNonDSBClusterNumDamage[i] << fDelimiter;
 		outFile << fNonDSBClusterNumSSB[i] << fDelimiter;
-		outFile << fNonDSBClusterNumBD[i] << G4endl;
+		outFile << fNonDSBClusterNumBD[i] << fDelimiter;
 		outFile << fNonDSBClusterBistranded[i] << G4endl;
 	}
 	outFile.close();
