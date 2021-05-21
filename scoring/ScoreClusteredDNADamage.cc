@@ -512,6 +512,24 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	G4double edep = aStep->GetTotalEnergyDeposit(); // In eV;
 	fTotalEdep += edep; // running sum of energy deposition in entire volume
 
+	// Check if volume is histone
+	G4int volCopyNo = aStep->GetPreStepPoint()->GetPhysicalVolume()->GetCopyNo() / 1000000;
+	G4int trackID = aStep->GetTrack()->GetTrackID();
+	if (volCopyNo == 2 && trackID < 0){ // histone and chemical track
+
+		G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
+		G4String volumeName = touchable->GetVolume()->GetName();
+		G4cout << " volumeName: " << volumeName << G4endl;
+		G4String processName = aStep->GetPostStepPoint()->GetProcessDefinedStep()->GetProcessName();
+		G4cout << "\tprocessName: " << processName << G4endl;
+		G4int volumeCopyNo = aStep->GetPreStepPoint()->GetPhysicalVolume()->GetCopyNo();
+		G4cout << "\tvolumeCopyNo: " << volumeCopyNo << G4endl;
+
+		aStep->GetTrack()->SetTrackStatus(fStopAndKill);
+		G4cout << "\tTrack KILLED! trackID: " << trackID << G4endl;
+		return false;
+	}
+
 	// Material filtering (only proceed if in sensitive DNA volumes)
 	G4Material* material = aStep->GetPreStepPoint()->GetMaterial();
 	if ( material != fDNAMaterial) {
@@ -572,8 +590,6 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	}
 
 	// Indirect damage starting here
-	G4Track* aTrack = aStep->GetTrack();
-	G4int trackID = aTrack->GetTrackID();
 	if (fIncludeIndirectDamage && trackID < 0) { // chemical tracks
 		// G4Touchable provides access to parent volumes, etc.
 		G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
@@ -598,6 +614,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 		G4int num_nucleotide = volID - (num_strand*1000000) - (num_res*100000);
 
 		// Get molecule info
+		G4Track* aTrack = aStep->GetTrack();
 		G4int moleculeID = GetMolecule(aTrack)->GetMoleculeID();
 
 		// Determine if damage is inflicted
@@ -662,7 +679,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 		// Kill track whether the interaction induced damage or not
 		aStep->GetTrack()->SetTrackStatus(fStopAndKill);
 		G4cout << "\tTrack KILLED! trackID: " << trackID << G4endl;
-		G4cout << "\tProcessHits calls: " << fNumProcessHitsCalls << G4endl;
+		// G4cout << "\tProcessHits calls: " << fNumProcessHitsCalls << G4endl;
 		return true;
 	} // negative trackID
 
