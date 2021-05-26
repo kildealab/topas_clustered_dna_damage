@@ -303,14 +303,17 @@ private:
     std::map<G4int, G4float> fMoleculeDamageProb_BD; // base damage
 
     // Vectors to hold indices of simple damages
+    std::vector<G4int>* fIndices;
     std::vector<G4int> fIndicesSSB1;
     std::vector<G4int> fIndicesSSB2;
     std::vector<G4int> fIndicesBD1;
     std::vector<G4int> fIndicesBD2;
+
     std::vector<G4int> fIndicesSSB1_direct;
     std::vector<G4int> fIndicesSSB2_direct;
     std::vector<G4int> fIndicesBD1_direct;
     std::vector<G4int> fIndicesBD2_direct;
+
     std::vector<G4int> fIndicesSSB1_indirect;
     std::vector<G4int> fIndicesSSB2_indirect;
     std::vector<G4int> fIndicesBD1_indirect;
