@@ -97,6 +97,7 @@ TsVGeometryComponent(pM, eM, mM, gM, parentComponent, parentVolume, name)
     fWater = GetMaterial(fWaterName);
 
     fDNAMaterial = GetMaterial(fDNAMaterialName);
+    fHistoneMaterial = GetMaterial(fHistoneMaterialName);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -158,7 +159,11 @@ void VoxelizedNuclearDNA::ResolveParameters() {
     if (fPm->ParameterExists(GetFullParmName("DNAMaterialName")))
         fDNAMaterialName = fPm->GetStringParameter(GetFullParmName("DNAMaterialName"));
     else
-        fDNAMaterialName = "G4_WATER_CLONE";
+        fDNAMaterialName = "G4_WATER_DNA";
+    if (fPm->ParameterExists(GetFullParmName("HistoneMaterialName")))
+        fHistoneMaterialName = fPm->GetStringParameter(GetFullParmName("HistoneMaterialName"));
+    else
+        fHistoneMaterialName = "G4_WATER_HISTONE";
 
     // Parameters not specific to this extension. Can't/don't need to use GetFullParmName()
     fCheckForOverlaps = fPm->GetBooleanParameter("Ge/CheckForOverlaps");
@@ -280,10 +285,10 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
 
     G4LogicalVolume* logicHistone;
     if (fUseG4Volumes) {
-        logicHistone = new G4LogicalVolume(solidHistone,fWater,"Histone");
+        logicHistone = new G4LogicalVolume(solidHistone,fHistoneMaterial,"Histone");
     }
     else {
-        logicHistone = CreateLogicalVolume("Histone",fWaterName,solidHistone);
+        logicHistone = CreateLogicalVolume("Histone",fHistoneMaterialName,solidHistone);
     }
 
     //----------------------------------------------------------------------------------------------
