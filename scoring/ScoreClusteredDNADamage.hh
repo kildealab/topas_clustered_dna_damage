@@ -207,6 +207,7 @@ private:
     G4bool fOutputHeaders;
     G4bool fIncludeDirectDamage;
     G4bool fIncludeIndirectDamage;
+    G4bool fHasChemistryModule;
 
     // Running counters
     G4int fNumEvents;
@@ -271,10 +272,15 @@ private:
     G4int fMoleculeID_H3Op;
     G4int fMoleculeID_H;
     G4int fMoleculeID_H2O2;
+
     G4int fMoleculeID_HO2;
     G4int fMoleculeID_HO2m;
     G4int fMoleculeID_O2;
     G4int fMoleculeID_O2m;
+
+    std::vector<G4int> fSpeciesToKillByDNAVolumes;
+    std::vector<G4int> fspeciesToKillByHistones;
+    G4bool fHistonesAsScavenger;
 
     // Damage yields
     G4int fTotalSSB;

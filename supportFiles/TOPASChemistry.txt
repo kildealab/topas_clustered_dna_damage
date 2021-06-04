@@ -1,8 +1,8 @@
 s:Ch/ChemistryName = "TOPASChemistry"
 b:Ch/TOPASChemistry/ChemicalStageTransportActive = "True" # "true" or "false"
-# d:Ch/TOPASChemistry/ChemicalStageTimeEnd = 1.0 ns
-# dv:Ch/TOPASChemistry/AddTimeStepHighEdge = 1 999999 ps
-# dv:Ch/TOPASChemistry/AddTimeStepResolution = 1 0.5 ps
+d:Ch/TOPASChemistry/ChemicalStageTimeEnd = 1.0 ns
+dv:Ch/TOPASChemistry/AddTimeStepHighEdge = 1 999999 ps
+dv:Ch/TOPASChemistry/AddTimeStepResolution = 1 0.5 ps
 
 # Diffusion coefficients
 sv:Ch/TOPASChemistry/DiffusionCoefficients/Molecules = 7 "SolvatedElectron" "Hydroxyl"  "Hydrogen"  "Hydronium" "DyHydrogen" "Hydroxide" "HydrogenPeroxide"

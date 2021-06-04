@@ -183,6 +183,13 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 			fNtuple->RegisterColumnI(&fTotalNonDSBCluster_indirect, "Non-DSB clusters indirect");
 		if (fIncludeDirectDamage && fIncludeIndirectDamage)
 			fNtuple->RegisterColumnI(&fTotalNonDSBCluster_hybrid, "Non-DSB clusters hybrid");
+
+		if (fIncludeDirectDamage)
+			fNtuple->RegisterColumnI(&fDoubleCountsDD, "Double counts direct-direct");
+		if (fIncludeIndirectDamage)
+			fNtuple->RegisterColumnI(&fDoubleCountsII, "Double counts indirect-indirect");
+		if (fIncludeDirectDamage && fIncludeIndirectDamage)
+			fNtuple->RegisterColumnI(&fDoubleCountsDI, "Double counts direct-indirect");
 	}
 }
 
@@ -221,18 +228,6 @@ void ScoreClusteredDNADamage::ResolveParams() {
 		fThresDistForCluster = fPm->GetIntegerParameter(GetFullParmName("BasePairDistanceForDefiningCluster"));
 	else
 		fThresDistForCluster = 40;
-
-	//----------------------------------------------------------------------------------------------
-	// Score direct or indirect damage
-	//----------------------------------------------------------------------------------------------
-	if ( fPm->ParameterExists(GetFullParmName("IncludeDirectDamage")))
-		fIncludeDirectDamage = fPm->GetBooleanParameter(GetFullParmName("IncludeDirectDamage"));
-	else
-		fIncludeDirectDamage = true;
-	if ( fPm->ParameterExists(GetFullParmName("IncludeIndirectDamage")))
-		fIncludeIndirectDamage = fPm->GetBooleanParameter(GetFullParmName("IncludeIndirectDamage"));
-	else
-		fIncludeIndirectDamage = true;
 
 	//----------------------------------------------------------------------------------------------
 	// Score damage clusters or not
@@ -327,141 +322,99 @@ void ScoreClusteredDNADamage::ResolveParams() {
 		fNumBpPerNucleosome = 0;
 
 	//----------------------------------------------------------------------------------------------
-	// Chemistry parameters
+	// Chemistry-related parameters
 	//----------------------------------------------------------------------------------------------
-	// MoleculeIDs
-	fMoleculeID_OH = G4MoleculeTable::Instance()->GetConfiguration("OH")->GetMoleculeID();
-	fMoleculeID_OHm = G4MoleculeTable::Instance()->GetConfiguration("OHm")->GetMoleculeID();
-	fMoleculeID_e_aq = G4MoleculeTable::Instance()->GetConfiguration("e_aq")->GetMoleculeID();
-	fMoleculeID_H2 = G4MoleculeTable::Instance()->GetConfiguration("H2")->GetMoleculeID();
-	fMoleculeID_H3Op = G4MoleculeTable::Instance()->GetConfiguration("H3Op")->GetMoleculeID();
-	fMoleculeID_H = G4MoleculeTable::Instance()->GetConfiguration("H")->GetMoleculeID();
-	fMoleculeID_H2O2 = G4MoleculeTable::Instance()->GetConfiguration("H2O2")->GetMoleculeID();
+	G4String* modules = fPm->GetStringVector(GetFullParmName("Modules"));
+	G4int numModules = fPm->GetVectorLength(GetFullParmName("Modules"));
+	fHasChemistryModule = false;
+	for (int i = 0; i < numModules; i++) {
+		modules[i].toLower();
+		if (modules[i].contains("chemistry")) {
+			fHasChemistryModule = true;
+			G4cout << " Chemistry module found: " << modules[i] << G4endl;
+		}
+	}
 
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/OH")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_OH, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/OH")));
-	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_OH, 0.4);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/OH")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_OH, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/OH")));
-	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_OH, 0.0);
+	if (fHasChemistryModule) {
+		G4ConfigurationIterator mol_iterator = G4MoleculeTable::Instance()->GetConfigurationIterator();
+		// G4MoleculeDefinitionIterator mol_iterator =	G4MoleculeTable::Instance()->GetDefintionIterator();
+		while ((mol_iterator)()) {
+			G4String mol_name = mol_iterator.value()->GetUserID();
+			G4int mol_ID =  mol_iterator.value()->GetMoleculeID();
+			G4String paramNameSSB = "DamageProbabilityOnInteraction/SSB/" + mol_name;
+			G4String paramNameBD = "DamageProbabilityOnInteraction/BD/" + mol_name;
 
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/OHm")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_OHm, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/OHm")));
-	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_OHm, 0.0);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/OHm")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_OHm, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/OHm")));
-	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_OHm, 0.0);
+			G4cout << " Registering molecule: " << mol_name << "\tID: " << mol_ID << G4endl;
 
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/e_aq")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_e_aq, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/e_aq")));
-	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_e_aq, 0.0);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/e_aq")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_e_aq, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/e_aq")));
-	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_e_aq, 0.0);
+			if (mol_name == "OH") {
+				if (fPm->ParameterExists(GetFullParmName(paramNameSSB)))
+					fMoleculeDamageProb_SSB.emplace(mol_ID, fPm->GetUnitlessParameter(GetFullParmName(paramNameSSB)));
+				else
+					fMoleculeDamageProb_SSB.emplace(mol_ID, 0.4);
+			}
+			else {
+				if (fPm->ParameterExists(GetFullParmName(paramNameSSB)))
+					fMoleculeDamageProb_SSB.emplace(mol_ID, fPm->GetUnitlessParameter(GetFullParmName(paramNameSSB)));
+				else
+					fMoleculeDamageProb_SSB.emplace(mol_ID, 0.0);
+			}
 
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/H2")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/H2")));
-	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H2, 0.0);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/H2")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_H2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/H2")));
-	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_H2, 0.0);
+			if (fPm->ParameterExists(GetFullParmName(paramNameBD)))
+				fMoleculeDamageProb_BD.emplace(mol_ID, fPm->GetUnitlessParameter(GetFullParmName(paramNameBD)));
+			else
+				fMoleculeDamageProb_BD.emplace(mol_ID, 0.0);
+		}
 
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/H3Op")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H3Op, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/H3Op")));
-	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H3Op, 0.0);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/H3Op")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_H3Op, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/H3Op")));
-	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_H3Op, 0.0);
+		if (fPm->ParameterExists(GetFullParmName("SpeciesToKillByDNAVolumes"))) {
+			G4String* speciesToKillbyDNAVolumes_names = fPm->GetStringVector(GetFullParmName("SpeciesToKillByDNAVolumes"));
+			G4int vectorLength = fPm->GetVectorLength(GetFullParmName("SpeciesToKillByDNAVolumes"));
+			for (int i = 0; i < vectorLength; i++){
+				G4String mol_name = speciesToKillbyDNAVolumes_names[i];
+				fSpeciesToKillByDNAVolumes.push_back(G4MoleculeTable::Instance()->GetConfiguration(mol_name)->GetMoleculeID());
+				G4cout << " To be killed by DNA volume: " << mol_name << G4endl;
+			}
+		}
+		else {
+			fSpeciesToKillByDNAVolumes.push_back(G4MoleculeTable::Instance()->GetConfiguration("OH")->GetMoleculeID());
+		}
 
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/H")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/H")));
-	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H, 0.0);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/H")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_H, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/H")));
-	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_H, 0.0);
+		if (fPm->ParameterExists(GetFullParmName("SpeciesToKillByHistones"))) {
+			G4String* speciestoKillbyHistones_names = fPm->GetStringVector(GetFullParmName("SpeciesToKillByHistones"));
+			G4int vectorLength = fPm->GetVectorLength(GetFullParmName("SpeciesToKillByHistones"));
+			for (int i = 0; i < vectorLength; i++){
+				G4String mol_name = speciestoKillbyHistones_names[i];
+				fspeciesToKillByHistones.push_back(G4MoleculeTable::Instance()->GetConfiguration(mol_name)->GetMoleculeID());
+				G4cout << " To be killed by histone volume: " << mol_name << G4endl;
+			}
+		}
+		else {
+			fspeciesToKillByHistones.push_back(G4MoleculeTable::Instance()->GetConfiguration("OH")->GetMoleculeID());
+			fspeciesToKillByHistones.push_back(G4MoleculeTable::Instance()->GetConfiguration("e_aq")->GetMoleculeID());
+			fspeciesToKillByHistones.push_back(G4MoleculeTable::Instance()->GetConfiguration("H")->GetMoleculeID());
+		}
 
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/H2O2")))
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H2O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/H2O2")));
+		if (fPm->ParameterExists(GetFullParmName("HistonesAsScavenger")))
+			fHistonesAsScavenger = fPm->GetBooleanParameter(GetFullParmName("HistonesAsScavenger"));
+		else
+			fHistonesAsScavenger = true;
+	}
+
+	//----------------------------------------------------------------------------------------------
+	// Score direct or indirect damage
+	//----------------------------------------------------------------------------------------------
+	if ( fPm->ParameterExists(GetFullParmName("IncludeDirectDamage")))
+		fIncludeDirectDamage = fPm->GetBooleanParameter(GetFullParmName("IncludeDirectDamage"));
 	else
-		fMoleculeDamageProb_SSB.emplace(fMoleculeID_H2O2, 0.0);
-	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/H2O2")))
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_H2O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/H2O2")));
+		fIncludeDirectDamage = true;
+
+	if ( fPm->ParameterExists(GetFullParmName("IncludeIndirectDamage")))
+		fIncludeIndirectDamage = fPm->GetBooleanParameter(GetFullParmName("IncludeIndirectDamage"));
 	else
-		fMoleculeDamageProb_BD.emplace(fMoleculeID_H2O2, 0.0);
-
-// ========================================================================================================================================
-// ========================================================================================================================================
-	// TODO: check if Chemistry is Extended
-	// try (G4MoleculeTable::Instance()->GetConfiguration("HO2") != NULL) {
-	// 	fMoleculeID_HO2 = G4MoleculeTable::Instance()->GetConfiguration("HO2")->GetMoleculeID();
-	//
-	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2")))
-	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2")));
-	// 	else
-	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2, 0.0);
-	//
-	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2")))
-	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2")));
-	// 	else
-	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2, 0.0);
-	// }
-
-	// if (G4MoleculeTable::Instance()->GetConfiguration("HO2m") != NULL) {
-	// 	fMoleculeID_HO2m = G4MoleculeTable::Instance()->GetConfiguration("HO2m")->GetMoleculeID();
-	//
-	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2m")))
-	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/HO2m")));
-	// 	else
-	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_HO2m, 0.0);
-	//
-	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2m")))
-	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/HO2m")));
-	// 	else
-	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_HO2m, 0.0);
-	// }
-	//
-	// if (G4MoleculeTable::Instance()->GetConfiguration("O2") != NULL) {
-	// 	fMoleculeID_O2 = G4MoleculeTable::Instance()->GetConfiguration("O2")->GetMoleculeID();
-	//
-	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2")))
-	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2")));
-	// 	else
-	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2, 0.0);
-	//
-	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/O2")))
-	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/O2")));
-	// 	else
-	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2, 0.0);
-	// }
-	//
-	// if (G4MoleculeTable::Instance()->GetConfiguration("O2m") != NULL) {
-	// 	fMoleculeID_O2m = G4MoleculeTable::Instance()->GetConfiguration("O2m")->GetMoleculeID();
-	//
-	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2m")))
-	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/SSB/O2m")));
-	// 	else
-	// 		fMoleculeDamageProb_SSB.emplace(fMoleculeID_O2m, 0.0);
-	//
-	// 	if (fPm->ParameterExists(GetFullParmName("DamageProbabilityOnInteraction/BD/O2m")))
-	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2m, fPm->GetUnitlessParameter(GetFullParmName("DamageProbabilityOnInteraction/BD/O2m")));
-	// 	else
-	// 		fMoleculeDamageProb_BD.emplace(fMoleculeID_O2m, 0.0);
-	// }
-
-// ========================================================================================================================================
-// ========================================================================================================================================
+		fIncludeIndirectDamage = false;
+	if (fIncludeIndirectDamage && !fHasChemistryModule) {
+		G4cerr << "Indirect damage scoring cannot be enabled if there is no chemistry module." << G4endl;
+		exit(0);
+	}
 
 	//----------------------------------------------------------------------------------------------
 	// Material of DNA residue volumes in which to score
@@ -687,23 +640,20 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 			return true;
 		}
 
-		std::vector<G4int> speciesToKillByDNA = {fMoleculeID_OH};
-		G4bool isspeciesToKillByDNA = IsElementInVector(moleculeID, speciesToKillByDNA);
-		if (isspeciesToKillByDNA){
-			// G4cout << "\tNo damage. Track killed. moleculeName: " << GetMolecule(aStep->GetTrack())->GetName() << G4endl;
+		G4bool isspeciesToKillByDNA = IsElementInVector(moleculeID, fSpeciesToKillByDNAVolumes);
+		if (justEnterVolume && isspeciesToKillByDNA){
+			G4cout << "\tNo damage. Track killed. moleculeName: " << GetMolecule(aStep->GetTrack())->GetName() << G4endl;
 			aStep->GetTrack()->SetTrackStatus(fStopAndKill);
 			return false;
 		}
 
 		// check if volume is histonne
 		G4int volCopyNo = aStep->GetPreStepPoint()->GetPhysicalVolume()->GetCopyNo() / 1000000;
-		G4bool fHistoneAsScavenger = true;
-		if (fHistoneAsScavenger && volCopyNo == 2) {
-			// Scavenge {OH*, e_aq- and H*} diffusing into histones
-			std::vector<G4int> speciesToKillByHistone = {fMoleculeID_OH, fMoleculeID_e_aq, fMoleculeID_H};
-			G4bool isspeciesToKillByHistone = IsElementInVector(moleculeID, speciesToKillByHistone);
+		if (fHistonesAsScavenger && volCopyNo == 2) {
+			G4bool isspeciesToKillByHistone = IsElementInVector(moleculeID, fspeciesToKillByHistones);
 			if (isspeciesToKillByHistone && !justEnterVolume){
-				G4cout << "\tKilled because diffusing in histone. processName: " << aStep->GetPostStepPoint()->GetProcessDefinedStep()->GetProcessName() << G4endl;
+				G4cout << "\tTrack killed because diffusing in histone. moleculeName:" << GetMolecule(aStep->GetTrack())->GetName()
+							 << " processName: " << aStep->GetPostStepPoint()->GetProcessDefinedStep()->GetProcessName() << G4endl;
 				aStep->GetTrack()->SetTrackStatus(fStopAndKill);
 				return false;
 			}
@@ -729,7 +679,8 @@ G4bool ScoreClusteredDNADamage::IsElementInVector(G4int pElement, std::vector<G4
 
 void ScoreClusteredDNADamage::RemoveElementFromVector(G4int pElement, std::vector<G4int> &pVector) {
 	if (!IsElementInVector(pElement, pVector)) {
-		G4cout << "Element not in vector" << G4endl;
+		G4cout << "Element (" << pElement << ") not in vector" << G4endl;
+		Print1DVectorContents(pVector);
 		return;
 	}
 	pVector.erase(std::remove(pVector.begin(), pVector.end(), pElement), pVector.end());
@@ -1445,10 +1396,8 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB(G4int pDamageCause)
 				indicesDSB1D.push_back(*site2);
 				indicesDSB1D.push_back(*site1);
 			}
-			site1 = fIndicesSSB1->erase(site1);
-			site2 = fIndicesSSB2->erase(site2);
 
-			if (isHybrid){
+			if (isHybrid) {
 				G4cout << "\tRecorded for hybrid damage: " << *site1 << ", " << *site2 << G4endl;
 				if (isSite1Direct && isSite2Indirect) {
 					RemoveElementFromVector(*site1, fIndicesSSB1_direct);
@@ -1463,6 +1412,8 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB(G4int pDamageCause)
 					exit(0);
 				}
 			}
+			site1 = fIndicesSSB1->erase(site1);
+			site2 = fIndicesSSB2->erase(site2);
 		}
 		// Damage in site 2 is earlier than site 1 and outside range to be considered DSB
 		else if (siteDiff < 0) {
