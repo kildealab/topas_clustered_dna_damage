@@ -163,7 +163,8 @@ i:Sc/ClusterScorer/BasePairDistanceForDefiningCluster = 40
 
 # Specify whether to terminate simulation once a dose threshold has been exceeded
 b:Sc/ClusterScorer/UseDoseThreshold = "False"
-d:Sc/ClusterScorer/DoseThreshold = 1 Gy
+d:Sc/ClusterScorer/TotalDose = 0.5 Gy
+d:Sc/ClusterScorer/DoseThreshold = Sc/ClusterScorer/TotalDose Gy * Sc/ClusterScorer/RelativeDose
 # includeFile = relative_doses/reldose_n1MeV_inter_proton.txt 
 
 # Output files

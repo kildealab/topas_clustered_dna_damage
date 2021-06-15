@@ -1,1 +1,1 @@
-d:Sc/ClusterScorer/DoseThreshold = 0.371 Gy
+u:Sc/ClusterScorer/RelativeDose = 0.371
