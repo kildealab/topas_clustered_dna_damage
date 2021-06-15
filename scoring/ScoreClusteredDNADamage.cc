@@ -78,9 +78,9 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 	fTotalBD_indirect = 0;
 
 	fTotalDSB = 0;
-	fTotalDSB_hybrid = 0;
 	fTotalDSB_direct = 0;
 	fTotalDSB_indirect = 0;
+	fTotalDSB_hybrid = 0;
 
 	fTotalComplexDSB = 0;
 	fTotalComplexDSB_direct = 0;
@@ -183,14 +183,14 @@ ScoreClusteredDNADamage::ScoreClusteredDNADamage(TsParameterManager* pM, TsMater
 			fNtuple->RegisterColumnI(&fTotalNonDSBCluster_indirect, "Non-DSB clusters indirect");
 		if (fIncludeDirectDamage && fIncludeIndirectDamage)
 			fNtuple->RegisterColumnI(&fTotalNonDSBCluster_hybrid, "Non-DSB clusters hybrid");
-
-		if (fIncludeDirectDamage)
-			fNtuple->RegisterColumnI(&fDoubleCountsDD, "Double counts direct-direct");
-		if (fIncludeIndirectDamage)
-			fNtuple->RegisterColumnI(&fDoubleCountsII, "Double counts indirect-indirect");
-		if (fIncludeDirectDamage && fIncludeIndirectDamage)
-			fNtuple->RegisterColumnI(&fDoubleCountsDI, "Double counts direct-indirect");
 	}
+
+	if (fIncludeDirectDamage)
+		fNtuple->RegisterColumnI(&fDoubleCountsDD, "Double counts direct-direct");
+	if (fIncludeIndirectDamage)
+		fNtuple->RegisterColumnI(&fDoubleCountsII, "Double counts indirect-indirect");
+	if (fIncludeDirectDamage && fIncludeIndirectDamage)
+		fNtuple->RegisterColumnI(&fDoubleCountsDI, "Double counts direct-indirect");
 }
 
 
@@ -412,9 +412,19 @@ void ScoreClusteredDNADamage::ResolveParams() {
 	else
 		fIncludeIndirectDamage = false;
 	if (fIncludeIndirectDamage && !fHasChemistryModule) {
-		G4cerr << "Indirect damage scoring cannot be enabled if there is no chemistry module." << G4endl;
+		G4cerr << "Error: Indirect damage scoring cannot be enabled if there is no chemistry module." << G4endl;
 		exit(0);
 	}
+
+	G4cout << "StepStatuses: " << G4endl;
+	G4cout << "\tfWorldBoundary: " << fWorldBoundary  << G4endl;
+	G4cout << "\tfGeomBoundary: " << fGeomBoundary   << G4endl;
+	G4cout << "\tfAtRestDoItProc: " << fAtRestDoItProc   << G4endl;
+	G4cout << "\tfAlongStepDoItProc: " << fAlongStepDoItProc   << G4endl;
+	G4cout << "\tfPostStepDoItProc: " << fPostStepDoItProc   << G4endl;
+	G4cout << "\tfUserDefinedLimit: " << fUserDefinedLimit   << G4endl;
+	G4cout << "\tfExclusivelyForcedProc: " << fExclusivelyForcedProc   << G4endl;
+	G4cout << "\tfUndefined: " << fUndefined   << G4endl;
 
 	//----------------------------------------------------------------------------------------------
 	// Material of DNA residue volumes in which to score
@@ -532,7 +542,10 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 
 	// Material filtering (only proceed if in sensitive DNA volumes)
 	G4Material* material = aStep->GetPreStepPoint()->GetMaterial();
-	if (material != fDNAMaterial && material != fHistoneMaterial) {
+	G4bool isDNAMaterial = (material == fDNAMaterial);
+	G4bool isHistoneMaterial = (material == fHistoneMaterial);
+
+	if (!isDNAMaterial && !isHistoneMaterial) {
 		// G4cout << "\tNot DNA nor histone material: " << aStep->GetPreStepPoint()->GetMaterial()->GetName() << G4endl;
 		return false;
 	}
@@ -547,7 +560,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 		fVoxelID = voxIDZ + (fNumVoxelsPerSide*voxIDX) + (fNumVoxelsPerSide*fNumVoxelsPerSide*voxIDY);
 	}
 	// Determine unique fiber ID number using copy ID of parent
-	if (fNumFibers > 1){
+	if (fNumFibers > 1) {
 		fFiberID = touchable->GetCopyNumber(fParentIndexFiber);
 	}
 	// Determine the indices defining the volume in which hit occured by parsing the copy number of the Physical Volume.
@@ -563,13 +576,10 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	// If this hit deposits energy (in sensitive DNA volume), update the appropriate energy deposition
 	// map
 	//----------------------------------------------------------------------------------------------
-	if (fIncludeDirectDamage && edep > 0 && trackID >= 0) { // energy deposition should be from physical tracks
-		if (aStep->IsFirstStepInVolume()) {
-			G4cout << "\tFirst step in volume by physical track: " << aStep->GetTrack()->GetParticleDefinition()->GetParticleName() << G4endl;
-			// G4cout << "\tKilled because first step. processName: " << aStep->GetPostStepPoint()->GetProcessDefinedStep()->GetProcessName() << G4endl;
-			// aStep->GetTrack()->SetTrackStatus(fStopAndKill);
-			// return false;
-		}
+	if (fIncludeDirectDamage && edep > 0 && trackID >= 0 && isDNAMaterial) { // energy deposition should be from physical tracks
+		// if (aStep->IsFirstStepInVolume()) {
+		// 	G4cout << "First step in volume by physical track: " << aStep->GetTrack()->GetParticleDefinition()->GetParticleName() << G4endl;
+		// }
 		//------------------------------------------------------------------------------------------
 		// Use the DNA strand ID, residue ID, and nucleotide ID to increment the energy deposited
 		// in the appropriate energy deposition map. Maps are indexed as follows:
@@ -585,13 +595,17 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 				fMapEdepStrand1Base[fVoxelID][fFiberID][bpID] += edep;
 			}
 		}
-		else{ // second strand
+		else if ( strandID == 1 ) { // second strand
 			if (residueID == fVolIdPhosphate || residueID == fVolIdDeoxyribose){
 				fMapEdepStrand2Backbone[fVoxelID][fFiberID][bpID] += edep;
 			}
 			else if (residueID == fVolIdBase) {
 				fMapEdepStrand2Base[fVoxelID][fFiberID][bpID] += edep;
 			}
+		}
+		else {
+			G4cerr << "Error: (While scoring direct damage) The following strandID is unrecognized: " << strandID << G4endl;
+			exit(0);
 		}
 		return true;
 	}
@@ -605,27 +619,24 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 		G4String volumeName = touchable->GetVolume()->GetName();
 
 		if (aStep->IsFirstStepInVolume()) {
-			G4cout << "\tFirst step in volume by chemical track: " << moleculeName << G4endl; // never called :(
-			// G4cout << "\tKilled because first step. processName: " << aStep->GetPostStepPoint()->GetProcessDefinedStep()->GetProcessName() << G4endl;
-			// aStep->GetTrack()->SetTrackStatus(fStopAndKill);
-			// return false;
+			G4cout << "First step in volume by chemical track: " << moleculeName << G4endl; // never called :(
 		}
 
 		// Kill species generated inside DNA volumes and histones
-		// G4bool justGotGenerated	= (aStep->GetPreStepPoint()->GetStepStatus() == fUndefined);
 		G4bool justGotGenerated	= (aStep->GetTrack()->GetCurrentStepNumber() == 1);
 		if (justGotGenerated) {
-			G4cout << "\tKilling " << moleculeName << " upon generation in " << volumeName << G4endl;
+			G4cout << "Killing " << moleculeName << " (" << trackID << ") upon generation in " << volumeName << G4endl;
+			PrintStepInfo(aStep); //debugging
 			aStep->GetTrack()->SetTrackStatus(fStopAndKill);
 			return false;
 		}
 
-		// Determine if specie just entered a volume
+		// Determine if molecule just entered a volume
 		G4bool justEnteredVolume	= (aStep->GetPreStepPoint()->GetStepStatus() == fGeomBoundary);
 
 		// Determine if damage is inflicted
 		G4bool isDamaged = IsDamageInflicted(moleculeID, residueID);
-		if (material == fDNAMaterial && justEnteredVolume && isDamaged) {
+		if (isDNAMaterial && justEnteredVolume && isDamaged) {
 			// Check which damage map to update
 			if ( strandID == 0 ) { // first strand
 				if (residueID == fVolIdPhosphate || residueID == fVolIdDeoxyribose){ // backbone damage
@@ -659,21 +670,19 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 
 		// Kill certain species interacting with DNA volumes
 		G4bool isSpeciesToKillByDNA = IsElementInVector(moleculeID, fSpeciesToKillByDNAVolumes);
-		if (material == fDNAMaterial && justEnteredVolume && isSpeciesToKillByDNA) {
-			G4cout << "\tNo damage. Track killed. moleculeName: " << moleculeName << G4endl;
+		if (isDNAMaterial && justEnteredVolume && isSpeciesToKillByDNA) {
+			G4cout << "No damage. Track killed. moleculeName: " << moleculeName << " (" << trackID << ")" << G4endl;
+			PrintStepInfo(aStep); //debugging
 			aStep->GetTrack()->SetTrackStatus(fStopAndKill);
 			return false;
 		}
 
 		// Kill certain species diffusing in histone volumes
-		// check if volume is histone
-		// G4int volCopyNo = aStep->GetPreStepPoint()->GetPhysicalVolume()->GetCopyNo() / 1000000;
-		// if (fHistonesAsScavenger && volCopyNo == 2) {
-		if (fHistonesAsScavenger && material == fHistoneMaterial) {
+		if (fHistonesAsScavenger && isHistoneMaterial) {
 			G4bool isSpeciesToKillByHistone = IsElementInVector(moleculeID, fspeciesToKillByHistones);
-			if (isSpeciesToKillByHistone && !justEnteredVolume){
-				G4cout << "\tTrack killed because diffusing in histone. moleculeName:" << moleculeName << " processName: " << postStepProcessName << G4endl;
-				// G4cout << "\tvolCopyNo: " << volCopyNo << G4endl;
+			if (isSpeciesToKillByHistone && !justEnteredVolume) {
+				G4cout << "Track killed because diffusing in histone. moleculeName:" << moleculeName << " (" << trackID << ")" << G4endl;
+				PrintStepInfo(aStep); //debugging
 				aStep->GetTrack()->SetTrackStatus(fStopAndKill);
 				return false;
 			}
@@ -733,6 +742,27 @@ G4bool ScoreClusteredDNADamage::IsDamageInflicted(G4int pMoleculeID, G4int pDNAV
 		return false;
 }
 
+void ScoreClusteredDNADamage::PrintStepInfo(G4Step* aStep) {
+	G4cout << "\tpreStep volume: " << aStep->GetPreStepPoint()->GetPhysicalVolume()->GetName() << G4endl;
+	G4cout << "\tpostStep volume: " << aStep->GetPostStepPoint()->GetPhysicalVolume()->GetName() << G4endl;
+	G4cout << "\tpreStep status: " << aStep->GetPreStepPoint()->GetStepStatus() << G4endl;
+	G4cout << "\tpostStep status: " << aStep->GetPostStepPoint()->GetStepStatus() << G4endl;
+	if (aStep->GetPreStepPoint()->GetStepStatus() != fUndefined)
+		G4cout << "\tPreStep process name: " << aStep->GetPreStepPoint()->GetProcessDefinedStep()->GetProcessName() << G4endl;
+	else
+		G4cout << "\tPreStep process name: Undefined" << G4endl;
+	G4cout << "\tPostStep processname: " << aStep->GetPostStepPoint()->GetProcessDefinedStep()->GetProcessName() << G4endl;
+	G4cout << "\tCurrentStepNumber of track: " << aStep->GetTrack()->GetCurrentStepNumber() << G4endl;
+	G4cout << "\tParent trackID: " << aStep->GetTrack()->GetParentID() << G4endl;
+	if (aStep->GetPreStepPoint()->GetPhysicalVolume()->GetName() != aStep->GetPostStepPoint()->GetPhysicalVolume()->GetName())
+		G4cout << "\tPreStep volume is NOT the same as PostStep volume." << G4endl;
+	else
+		G4cout << "\tPreStep volume is the same as PostStep volume." << G4endl;
+	if (aStep->GetTrack()->GetCurrentStepNumber() == 1)
+		G4cout << "\tCurrentStepNumber of track is 1." << G4endl;
+	if (aStep->GetTrack()->GetParentID() >= 0)
+		G4cout << "\tParent track is physical." << G4endl;
+}
 
 //--------------------------------------------------------------------------------------------------
 // This method is called at the end of the event (primary particle & its secondaries).
@@ -1360,7 +1390,7 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB(G4int pDamageCause)
 		fIndicesSSB2 = &fIndicesSSB2_merged;
 	}
 	else {
-		G4cerr << "Unknown damage cause ID: " << pDamageCause << G4endl;
+		G4cerr << "Error: (While scoring DSB) The following integer damage cause label is unrecognized: " << pDamageCause << G4endl;
 		exit(0);
 	}
 
@@ -1390,11 +1420,11 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB(G4int pDamageCause)
 		G4bool isSite2Indirect = IsElementInVector(*site2, fIndicesSSB2_indirect);
 		if (pDamageCause == fIdHybrid) { // hybrid
 			if (isSite1Direct && isSite1Indirect) {
-				G4cerr << "\tCONTRADICTION: In RecordDSB, site1: " << *site1 << " is both direct and indirect!" << G4endl;
+				G4cerr << "Error: (While scoring DSB) CONTRADICTION! site1: " << *site1 << " is both direct and indirect!" << G4endl;
 				exit(0);
 			}
 			if (isSite2Direct && isSite2Indirect) {
-				G4cerr << "\tCONTRADICTION: In RecordDSB, site2: " << *site2 << " is both direct and indirect!" << G4endl;
+				G4cerr << "Error: (While scoring DSB) CONTRADICTION! site2: " << *site2 << " is both direct and indirect!" << G4endl;
 				exit(0);
 			}
 			isHybrid = (isSite1Direct && isSite2Indirect) || (isSite1Indirect && isSite2Direct);
@@ -1425,7 +1455,7 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB(G4int pDamageCause)
 					RemoveElementFromVector(*site2, fIndicesSSB2_direct);
 				}
 				else {
-					G4cerr << "\tDamage is not hybrid!" << G4endl;
+					G4cerr << "Error: (While scoring DSB) False count of hybrid damage!" << G4endl;
 					exit(0);
 				}
 			}
@@ -1533,7 +1563,7 @@ void ScoreClusteredDNADamage::AddDamageToCluster(DamageCluster& cluster, G4int d
 			fTotalSSB_indirect--;
 		}
 		else {
-			G4cout << "An error has arisen while scoring clustered DNA damage. The following integer damage cause label is unrecognized: " << damageCause << G4endl;
+			G4cout << "Error: (While scoring clustered DMA damage) The following integer damage cause label is unrecognized: " << damageCause << G4endl;
 			exit(0);
 		}
 	}
@@ -1549,7 +1579,7 @@ void ScoreClusteredDNADamage::AddDamageToCluster(DamageCluster& cluster, G4int d
 			fTotalBD_indirect--;
 		}
 		else {
-			G4cout << "An error has arisen while scoring clustered DNA damage. The following integer damage cause label is unrecognized: " << damageCause << G4endl;
+			G4cout << "Error: (While scoring clustered DMA damage) The following integer damage cause label is unrecognized: " << damageCause << G4endl;
 			exit(0);
 		}
 	}
@@ -1569,7 +1599,7 @@ void ScoreClusteredDNADamage::AddDamageToCluster(DamageCluster& cluster, G4int d
 			fTotalDSB_hybrid--;
 		}
 		else {
-			G4cout << "An error has arisen while scoring clustered DNA damage. The following integer damage cause label is unrecognized: " << damageCause << G4endl;
+			G4cout << "Error: (While scoring clustered DMA damage) The following integer damage cause label is unrecognized: " << damageCause << G4endl;
 			exit(0);
 		}
 	}

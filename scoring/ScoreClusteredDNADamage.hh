@@ -66,6 +66,8 @@ private:
 
     G4bool IsDamageInflicted(G4int, G4int);
 
+    void PrintStepInfo(G4Step*);
+
     //----------------------------------------------------------------------------------------------
     // Erase contents of various output files (and their corresponding header files)
     //----------------------------------------------------------------------------------------------
