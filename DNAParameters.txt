@@ -112,9 +112,8 @@ b:Ph/Default/AugerCascade = "True"
 b:Ph/Default/DeexcitationIgnoreCut = "True"
 
 #---------------------------------------------------------------------------------------------------
-# Particle source
+# Particle source (volumetric or surface based)
 #---------------------------------------------------------------------------------------------------
-# Surface source (particles directed inwards with random orientation)
 s:So/Example/Type = "VolumeOrSurface"
 s:So/Example/Component = "Cell" 
 s:So/Example/DistributePrimariesAtVolumeRegion = "volume"
@@ -146,28 +145,34 @@ d:Sc/ClusterScorer/EnergyThresholdForHavingSSB = 17.5 eV
 d:Sc/ClusterScorer/EnergyThresholdForHavingBD = 17.5 eV
 i:Sc/ClusterScorer/BasePairDistanceForDefiningCluster = 40
 
-# Specify whether to terminate simulation once a dose threshold has been exceeded
+# Specify whether to terminate simulation once a dose threshold has been exceeded (otherwise use NumberOfHistoriesInRun)
 b:Sc/ClusterScorer/UseDoseThreshold = "False"
-d:Sc/ClusterScorer/TotalDose = 0.5 Gy
+d:Sc/ClusterScorer/TotalDose = 1.0 Gy # Total dose to be delivered across all secondary particles
 d:Sc/ClusterScorer/DoseThreshold = Sc/ClusterScorer/TotalDose Gy * Sc/ClusterScorer/RelativeDose
+
+# Specify the relative dose of the secondary particle species if relevant:
+# If using secondary particle spectra:
 # includeFile = relative_doses/reldose_n1MeV_inter_proton.txt 
+# If not using secondary particle spectra:
+u:Sc/ClusterScorer/RelativeDose = 1.0
+
 
 # Output files
 s:Sc/ClusterScorer/OutputType = "ASCII" # Applies to main output file (damage yields) only
-s:Sc/ClusterScorer/OutputFile = "damage_yields"
+s:Sc/ClusterScorer/OutputFile = "damage_yields" # Main output file with DNA damage yields
 b:Sc/ClusterScorer/OutputToConsole = "True"
 s:Sc/ClusterScorer/IfOutputFileAlreadyExists = "Overwrite"
-s:Sc/ClusterScorer/FileRunSummary = "data_run_summary"
-s:Sc/ClusterScorer/FileComplexDSB = "data_comp_dsb"
-s:Sc/ClusterScorer/FileNonDSBCluster = "data_non_dsb_cluster"
-b:Sc/ClusterScorer/OutputHeaders = "False"
+s:Sc/ClusterScorer/FileRunSummary = "data_run_summary" # Output file containing run details: dose delivery, etc.
+s:Sc/ClusterScorer/FileComplexDSB = "data_comp_dsb" # Output file containing complex-DSB cluster properties
+s:Sc/ClusterScorer/FileNonDSBCluster = "data_non_dsb_cluster" # Output file containing non-DSB cluster properties
+b:Sc/ClusterScorer/OutputHeaders = "False" # Applies to additional output files
 
 # Options to modify how damage yields are recorded
 b:Sc/ClusterScorer/ScoreClusters = "True" # toggle whether or not to record clustered DNA damage
-b:Sc/ClusterScorer/RecordDamagePerEvent = "False"
-b:Sc/ClusterScorer/RecordDamagePerFiber= "False"
+b:Sc/ClusterScorer/RecordDamagePerEvent = "False" # record damage per run or per event
+b:Sc/ClusterScorer/RecordDamagePerFiber= "False" # record damage for all fibres together or per fibre
 
-# Need to access some parameters from geometry
+# Provide scorer with access to some geometry parameters
 s:Sc/ClusterScorer/DNAMaterialName = Ge/MyDNA/DNAMaterialName
 i:Sc/ClusterScorer/DnaNumNucleosomePerFiber = Ge/MyDNA/DnaNumNucleosomePerFiber
 i:Sc/ClusterScorer/DnaNumBpPerNucleosome = Ge/MyDNA/DnaNumBpPerNucleosome
