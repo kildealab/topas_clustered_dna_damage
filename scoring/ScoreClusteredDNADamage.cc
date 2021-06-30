@@ -416,25 +416,15 @@ void ScoreClusteredDNADamage::ResolveParams() {
 		exit(0);
 	}
 
-	G4cout << "StepStatuses: " << G4endl;
-	G4cout << "\tfWorldBoundary: " << fWorldBoundary  << G4endl;
-	G4cout << "\tfGeomBoundary: " << fGeomBoundary   << G4endl;
-	G4cout << "\tfAtRestDoItProc: " << fAtRestDoItProc   << G4endl;
-	G4cout << "\tfAlongStepDoItProc: " << fAlongStepDoItProc   << G4endl;
-	G4cout << "\tfPostStepDoItProc: " << fPostStepDoItProc   << G4endl;
-	G4cout << "\tfUserDefinedLimit: " << fUserDefinedLimit   << G4endl;
-	G4cout << "\tfExclusivelyForcedProc: " << fExclusivelyForcedProc   << G4endl;
-	G4cout << "\tfUndefined: " << fUndefined   << G4endl;
-
 	//----------------------------------------------------------------------------------------------
 	// Material of DNA residue volumes in which to score
 	//----------------------------------------------------------------------------------------------
-	G4String DNAMaterialName = "G4_WATER";
+	G4String DNAMaterialName = "G4_WATER_DNA";
 	if ( fPm->ParameterExists(GetFullParmName("DNAMaterialName")))
 		DNAMaterialName = fPm->GetStringParameter(GetFullParmName("DNAMaterialName"));
 	fDNAMaterial = GetMaterial(DNAMaterialName);
 
-	G4String HistoneMaterialName = "G4_WATER";
+	G4String HistoneMaterialName = "G4_WATER_HISTONE";
 	if ( fPm->ParameterExists(GetFullParmName("HistoneMaterialName")))
 		HistoneMaterialName = fPm->GetStringParameter(GetFullParmName("HistoneMaterialName"));
 	fHistoneMaterial = GetMaterial(HistoneMaterialName);
@@ -541,17 +531,28 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	fTotalEdep += edep; // running sum of energy deposition in entire volume
 
 	// Material filtering (only proceed if in sensitive DNA volumes)
-	G4Material* material = aStep->GetPreStepPoint()->GetMaterial();
-	G4bool isDNAMaterial = (material == fDNAMaterial);
-	G4bool isHistoneMaterial = (material == fHistoneMaterial);
-
-	if (!isDNAMaterial && !isHistoneMaterial) {
-		// G4cout << "\tNot DNA nor histone material: " << aStep->GetPreStepPoint()->GetMaterial()->GetName() << G4endl;
+	G4Material* materialPreStep = aStep->GetPreStepPoint()->GetMaterial();
+	G4bool isPreStepDNAMaterial = (materialPreStep == fDNAMaterial);
+	G4bool isPreStepHistoneMaterial = (materialPreStep == fHistoneMaterial);
+	G4Material* materialPostStep = aStep->GetPostStepPoint()->GetMaterial();
+	G4bool isPostStepDNAMaterial = (materialPostStep == fDNAMaterial);
+	if (!isPreStepDNAMaterial && !isPostStepDNAMaterial && !isPreStepHistoneMaterial) {
 		return false;
 	}
 
 	// G4Touchable provides access to parent volumes, etc.
-	G4TouchableHistory* touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
+	G4TouchableHistory* touchable;
+	if (isPreStepDNAMaterial || isPreStepHistoneMaterial) {
+		touchable = (G4TouchableHistory*)(aStep->GetPreStepPoint()->GetTouchable());
+	}
+	else if (isPostStepDNAMaterial) {
+		touchable = (G4TouchableHistory*)(aStep->GetPostStepPoint()->GetTouchable());
+	}
+	else {
+		G4cerr << "Error: Material check failed. PreStep: " << materialPreStep << " PostStep: " << materialPostStep << G4endl;
+		exit(0);
+	}
+
 	// Determine unique voxel ID number using replica ID of parent volumes
 	if (fBuildNucleus) {
 		G4int voxIDZ = touchable->GetReplicaNumber(fParentIndexVoxelZ);
@@ -564,7 +565,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 		fFiberID = touchable->GetCopyNumber(fParentIndexFiber);
 	}
 	// Determine the indices defining the volume in which hit occured by parsing the copy number of the Physical Volume.
-	G4int volID = aStep->GetPreStepPoint()->GetPhysicalVolume()->GetCopyNo();
+	G4int volID = touchable->GetVolume()->GetCopyNo();
 	G4int strandID = volID / 1000000;
 	G4int residueID = (volID - (strandID*1000000)) / 100000;
 	G4int bpID = volID - (strandID*1000000) - (residueID*100000);
@@ -576,10 +577,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	// If this hit deposits energy (in sensitive DNA volume), update the appropriate energy deposition
 	// map
 	//----------------------------------------------------------------------------------------------
-	if (fIncludeDirectDamage && edep > 0 && trackID >= 0 && isDNAMaterial) { // energy deposition should be from physical tracks
-		// if (aStep->IsFirstStepInVolume()) {
-		// 	G4cout << "First step in volume by physical track: " << aStep->GetTrack()->GetParticleDefinition()->GetParticleName() << G4endl;
-		// }
+	if (fIncludeDirectDamage && edep > 0 && trackID >= 0 && isPreStepDNAMaterial) { // energy deposition should be from physical tracks
 		//------------------------------------------------------------------------------------------
 		// Use the DNA strand ID, residue ID, and nucleotide ID to increment the energy deposited
 		// in the appropriate energy deposition map. Maps are indexed as follows:
@@ -588,7 +586,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 		// Third index specifies the bp index
 		//------------------------------------------------------------------------------------------
 		if ( strandID == 0 ){ // first strand
-			if (residueID == fVolIdPhosphate || residueID == fVolIdDeoxyribose){
+			if (residueID == fVolIdPhosphate || residueID == fVolIdDeoxyribose) {
 				fMapEdepStrand1Backbone[fVoxelID][fFiberID][bpID] += edep;
 			}
 			else if (residueID == fVolIdBase) {
@@ -596,7 +594,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 			}
 		}
 		else if ( strandID == 1 ) { // second strand
-			if (residueID == fVolIdPhosphate || residueID == fVolIdDeoxyribose){
+			if (residueID == fVolIdPhosphate || residueID == fVolIdDeoxyribose) {
 				fMapEdepStrand2Backbone[fVoxelID][fFiberID][bpID] += edep;
 			}
 			else if (residueID == fVolIdBase) {
@@ -611,78 +609,67 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 	}
 
 	// Indirect damage
-	if (fIncludeIndirectDamage && trackID < 0) { // chemical tracks
+	else if (fIncludeIndirectDamage && trackID < 0) { // chemical tracks
 		// Get molecule info
 		G4int moleculeID = GetMolecule(aStep->GetTrack())->GetMoleculeID();
-		G4String moleculeName = GetMolecule(aStep->GetTrack())->GetName();
-		G4String postStepProcessName = aStep->GetPostStepPoint()->GetProcessDefinedStep()->GetProcessName();
-		G4String volumeName = touchable->GetVolume()->GetName();
 
-		if (aStep->IsFirstStepInVolume()) {
-			G4cout << "First step in volume by chemical track: " << moleculeName << G4endl; // never called :(
-		}
-
-		// Kill species generated inside DNA volumes and histones
-		G4bool justGotGenerated	= (aStep->GetTrack()->GetCurrentStepNumber() == 1);
-		if (justGotGenerated) {
-			G4cout << "Killing " << moleculeName << " (" << trackID << ") upon generation in " << volumeName << G4endl;
-			PrintStepInfo(aStep); //debugging
+		// Kill species generated inside DNA volumes and histones by not letting them exit
+		G4Material* materialTrackVertex = aStep->GetTrack()->GetLogicalVolumeAtVertex()->GetMaterial();
+		G4bool isPreStepInTrackVertexVolume = (materialPreStep == materialTrackVertex);
+		G4bool isPostStepInNewVolume	= (aStep->GetPostStepPoint()->GetStepStatus() == fGeomBoundary);
+		if ( isPostStepInNewVolume && isPreStepInTrackVertexVolume && (isPreStepDNAMaterial || isPreStepHistoneMaterial) ) {
 			aStep->GetTrack()->SetTrackStatus(fStopAndKill);
 			return false;
 		}
 
-		// Determine if molecule just entered a volume
-		G4bool justEnteredVolume	= (aStep->GetPreStepPoint()->GetStepStatus() == fGeomBoundary);
-
 		// Determine if damage is inflicted
 		G4bool isDamaged = IsDamageInflicted(moleculeID, residueID);
-		if (isDNAMaterial && justEnteredVolume && isDamaged) {
+		if (isDamaged && isPostStepDNAMaterial && isPostStepInNewVolume && !isPreStepDNAMaterial && !isPreStepHistoneMaterial) {
 			// Check which damage map to update
 			if ( strandID == 0 ) { // first strand
-				if (residueID == fVolIdPhosphate || residueID == fVolIdDeoxyribose){ // backbone damage
+				if (residueID == fVolIdPhosphate || residueID == fVolIdDeoxyribose) { // backbone damage
 					fIndices = &fMapIndDamageStrand1Backbone[fVoxelID][fFiberID];
 				}
 				else if (residueID == fVolIdBase){ // base damage
 					fIndices = &fMapIndDamageStrand1Base[fVoxelID][fFiberID];
 				}
 			}
-			else { // second strand
-				if (residueID == fVolIdPhosphate || residueID == fVolIdDeoxyribose){ // backbone damage
+			else if ( strandID == 1 ) { // second strand
+				if (residueID == fVolIdPhosphate || residueID == fVolIdDeoxyribose) { // backbone damage
 					fIndices = &fMapIndDamageStrand2Backbone[fVoxelID][fFiberID];
 				}
 				else if (residueID == fVolIdBase){ // base damage
 					fIndices = &fMapIndDamageStrand2Base[fVoxelID][fFiberID];
 				}
 			}
-
-			// Check if backbone or base has already been damaged previously via indirect action
-			if (IsElementInVector(bpID, *fIndices)){
-				G4cout << "\tBase pair already damaged. voxel: " << fVoxelID << " fiber: " << fFiberID << " bp: " << bpID << G4endl;
-				return false;
+			else {
+				G4cerr << "Error: (While scoring indirect damage) The following strandID is unrecognized: " << strandID << G4endl;
+				exit(0);
 			}
 
-			// Record damaged nucleotide
-			fIndices->push_back(bpID);
-			G4cout << "\tDAMAGE INDUCED! voxel: " << fVoxelID << " fiber: " << fFiberID << " bp: " << bpID << G4endl;
-			aStep->GetTrack()->SetTrackStatus(fStopAndKill);
-			return true;
+			// Check if backbone or base has already been damaged previously via indirect action
+			if (IsElementInVector(bpID, *fIndices)) {
+				return false;
+			}
+			else { // Record damaged nucleotide
+				fIndices->push_back(bpID);
+				aStep->GetTrack()->SetTrackStatus(fStopAndKill);
+				return true;
+			}
 		}
 
 		// Kill certain species interacting with DNA volumes
 		G4bool isSpeciesToKillByDNA = IsElementInVector(moleculeID, fSpeciesToKillByDNAVolumes);
-		if (isDNAMaterial && justEnteredVolume && isSpeciesToKillByDNA) {
-			G4cout << "No damage. Track killed. moleculeName: " << moleculeName << " (" << trackID << ")" << G4endl;
-			PrintStepInfo(aStep); //debugging
+		if (isPostStepDNAMaterial && isPostStepInNewVolume && isSpeciesToKillByDNA && !isPreStepDNAMaterial && !isPreStepHistoneMaterial) {
 			aStep->GetTrack()->SetTrackStatus(fStopAndKill);
 			return false;
 		}
 
 		// Kill certain species diffusing in histone volumes
-		if (fHistonesAsScavenger && isHistoneMaterial) {
+		if (fHistonesAsScavenger && isPreStepHistoneMaterial) {
 			G4bool isSpeciesToKillByHistone = IsElementInVector(moleculeID, fspeciesToKillByHistones);
-			if (isSpeciesToKillByHistone && !justEnteredVolume) {
-				G4cout << "Track killed because diffusing in histone. moleculeName:" << moleculeName << " (" << trackID << ")" << G4endl;
-				PrintStepInfo(aStep); //debugging
+			G4bool isPreStepInNewVolume	= (aStep->GetPreStepPoint()->GetStepStatus() == fGeomBoundary);
+			if (isSpeciesToKillByHistone && isPreStepInNewVolume) {
 				aStep->GetTrack()->SetTrackStatus(fStopAndKill);
 				return false;
 			}
@@ -722,13 +709,13 @@ G4bool ScoreClusteredDNADamage::IsDamageInflicted(G4int pMoleculeID, G4int pDNAV
 	if ( fMoleculeDamageProb_SSB.find(pMoleculeID) == fMoleculeDamageProb_SSB.end() && fMoleculeDamageProb_BD.find(pMoleculeID) == fMoleculeDamageProb_BD.end()) {
   	// pMoleculeID not found in fMoleculeDamageProb_SSB and fMoleculeDamageProb_BD
 		G4cerr << "\tmoleculeID NOT LISTED: " << pMoleculeID << G4endl;
-		return false;
+		exit(0);
 	}
 
 	if (pDNAVolumeID == fVolIdPhosphate || pDNAVolumeID == fVolIdDeoxyribose)
-		prob_damage = fMoleculeDamageProb_SSB[pMoleculeID]; // returns 0 if pMoleculeID is not a "key" in the map
+		prob_damage = fMoleculeDamageProb_SSB[pMoleculeID];
 	else if (pDNAVolumeID == fVolIdBase)
-		prob_damage = fMoleculeDamageProb_BD[pMoleculeID]; // returns 0 if pMoleculeID is not a "key" in the map
+		prob_damage = fMoleculeDamageProb_BD[pMoleculeID];
 
 	if (prob_damage == 0.)
 		return false;
@@ -742,7 +729,7 @@ G4bool ScoreClusteredDNADamage::IsDamageInflicted(G4int pMoleculeID, G4int pDNAV
 		return false;
 }
 
-void ScoreClusteredDNADamage::PrintStepInfo(G4Step* aStep) {
+void ScoreClusteredDNADamage::PrintStepInfo(G4Step* aStep) { // for debugging
 	G4cout << "\tpreStep volume: " << aStep->GetPreStepPoint()->GetPhysicalVolume()->GetName() << G4endl;
 	G4cout << "\tpostStep volume: " << aStep->GetPostStepPoint()->GetPhysicalVolume()->GetName() << G4endl;
 	G4cout << "\tpreStep status: " << aStep->GetPreStepPoint()->GetStepStatus() << G4endl;
@@ -754,6 +741,8 @@ void ScoreClusteredDNADamage::PrintStepInfo(G4Step* aStep) {
 	G4cout << "\tPostStep processname: " << aStep->GetPostStepPoint()->GetProcessDefinedStep()->GetProcessName() << G4endl;
 	G4cout << "\tCurrentStepNumber of track: " << aStep->GetTrack()->GetCurrentStepNumber() << G4endl;
 	G4cout << "\tParent trackID: " << aStep->GetTrack()->GetParentID() << G4endl;
+	G4cout << "\tTrack length: " << aStep->GetTrack()->GetTrackLength() << G4endl;
+	G4cout << "\tTrack status: " << aStep->GetTrack()->GetTrackStatus() << G4endl;
 	if (aStep->GetPreStepPoint()->GetPhysicalVolume()->GetName() != aStep->GetPostStepPoint()->GetPhysicalVolume()->GetName())
 		G4cout << "\tPreStep volume is NOT the same as PostStep volume." << G4endl;
 	else
@@ -1020,12 +1009,12 @@ void ScoreClusteredDNADamage::AbsorbResultsFromWorkerScorer(TsVScorer* workerSco
 	fNumEvents += myWorkerScorer->fNumEvents;
 	fNumProcessHitsCalls += myWorkerScorer->fNumProcessHitsCalls;
 
-    // Absorb the energy deposition maps from this worker
-    if (!fRecordDamagePerEvent) {
-	    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand1Backbone,myWorkerScorer->fMapEdepStrand1Backbone);
-	    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand2Backbone,myWorkerScorer->fMapEdepStrand2Backbone);
-	    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand1Base,myWorkerScorer->fMapEdepStrand1Base);
-	    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand2Base,myWorkerScorer->fMapEdepStrand2Base);
+  // Absorb the energy deposition maps from this worker
+  if (!fRecordDamagePerEvent) {
+    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand1Backbone,myWorkerScorer->fMapEdepStrand1Backbone);
+    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand2Backbone,myWorkerScorer->fMapEdepStrand2Backbone);
+    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand1Base,myWorkerScorer->fMapEdepStrand1Base);
+    AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand2Base,myWorkerScorer->fMapEdepStrand2Base);
 
 		AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand1Backbone,myWorkerScorer->fMapIndDamageStrand1Backbone);
 		AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand2Backbone,myWorkerScorer->fMapIndDamageStrand2Backbone);
@@ -1200,15 +1189,6 @@ void ScoreClusteredDNADamage::RecordDamage() {
 				fIndicesSimple = CombineSimpleDamage();
 				RecordClusteredDamage();
 			}
-
-			// if (totalFiberSSB_direct + totalFiberSSB_indirect > 0) {
-			// 	G4cout << "\tfTotalSSB: " << fTotalSSB << " voxel: " << iVoxel << " fiber: " << iFiber << G4endl;
-			// 	G4cout << "\tfTotalSSB_direct: " << fTotalSSB_direct << " voxel: " << iVoxel << " fiber: " << iFiber << G4endl;
-			// }
-			// if (totalFiberBD_direct + totalFiberBD_indirect > 0)
-			// 	G4cout << "\tfTotalBD: " << fTotalBD << " voxel: " << iVoxel << " fiber: " << iFiber << G4endl;
-			// if (totalFiberDSB_hybrid + totalFiberDSB_direct + totalFiberDSB_indirect > 0)
-			// 	G4cout << "\tfTotalDSB: " << fTotalDSB/2 << " voxel: " << iVoxel << " fiber: " << iFiber << G4endl;
 
 			// If recording damage on a fiber-by-fiber basis, fill the output ntuple
 			if (fRecordDamagePerFiber) {

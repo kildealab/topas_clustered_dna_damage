@@ -1,0 +1,24 @@
+# Parameters to define DNA damage
+i:Sc/ClusterScorer/BasePairDistanceForDefiningDSB = 10
+d:Sc/ClusterScorer/EnergyThresholdForHavingSSB = 17.5 eV
+d:Sc/ClusterScorer/EnergyThresholdForHavingBD = 17.5 eV
+i:Sc/ClusterScorer/BasePairDistanceForDefiningCluster = 40
+
+# Parameters to define indirect DNA damage
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/OH = 0.4
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/OH = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/OHm = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/OHm = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/e_aq = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/e_aq = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/H2 = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/H2 = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/H3Op = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/H3Op = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/H = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/H = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/H2O2 = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/H2O2 = 0.0
+sv:Sc/ClusterScorer/SpeciesToKillByDNAVolumes = 1 "OH"
+sv:Sc/ClusterScorer/SpeciesToKillByHistones = 3 "OH" "e_aq" "H"
+b:Sc/ClusterScorer/HistoneAsScavenger = "True"
