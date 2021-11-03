@@ -82,7 +82,9 @@ Contact email: logan.montgomery@mail.mcgill.ca
 ## License
 
 * This project is provided under the MIT license. See the [LICENSE file](LICENSE) for more info.
-* When using any component of this application, please be sure to cite our paper (*coming soon*)
+* When using any component of this application, please be sure to cite our paper:
+    * Montgomery L, Lund CM, Landry A, Kildea J (2021). Towards the characterization of neutron carcinogenesis through direct action simulations of clustered DNA damage. <em>Phys Med Biol</em> 66(20); 205011.
+    * DOI: [https://doi.org/10.1088/1361-6560/ac2998](https://doi.org/10.1088/1361-6560/ac2998)
 
 ## Component details
 
