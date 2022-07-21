@@ -1,4 +1,6 @@
-# clustered_dna_damage_indirect is an extension of topas_clustered_dna_damage to include indirect action modeling and damage scoring.
+# clustered_dna_damage_indirect 
+
+clustered_dna_damage_indirect is an extension of topas_clustered_dna_damage to include indirect action modeling and damage scoring.
 
 Updates to topas_clustered_dna_damage:
 
