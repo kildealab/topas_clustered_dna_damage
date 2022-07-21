@@ -3,7 +3,7 @@ s:Ch/ChemistryName = "TOPASChemistry"
 # s:Ch/TOPASChemistry/RemoveInMaterial = "G4_WATER_HISTONE"
 # sv:Ch/TOPASChemistry/RemoveInMaterialTheseMolecules = 3 "Hydroxyl" "SolvatedElectron" "Hydrogen"
 
-b:Ch/TOPASChemistry/ChemicalStageTransportActive = "True" # "true" or "false"
+b:Ch/TOPASChemistry/ChemicalStageTransportActive = "True"
 d:Ch/TOPASChemistry/ChemicalStageTimeEnd = 1.0 ns
 dv:Ch/TOPASChemistry/AddTimeStepHighEdge = 1 999999 ps
 dv:Ch/TOPASChemistry/AddTimeStepResolution = 1 0.5 ps

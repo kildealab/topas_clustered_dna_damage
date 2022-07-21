@@ -649,6 +649,7 @@ G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 
 			// Check if backbone or base has already been damaged previously via indirect action
 			if (IsElementInVector(bpID, *fIndices)) {
+				fDoubleCountsII++;
 				return false;
 			}
 			else { // Record damaged nucleotide
@@ -690,6 +691,10 @@ G4bool ScoreClusteredDNADamage::IsElementInVector(G4int pElement, std::vector<G4
 		return false;
 }
 
+
+//--------------------------------------------------------------------------------------------------
+// This helper method removes a specified element from a vector.
+//--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::RemoveElementFromVector(G4int pElement, std::vector<G4int> &pVector) {
 	if (!IsElementInVector(pElement, pVector)) {
 		G4cout << "Element (" << pElement << ") not in vector" << G4endl;
@@ -701,7 +706,7 @@ void ScoreClusteredDNADamage::RemoveElementFromVector(G4int pElement, std::vecto
 
 
 //--------------------------------------------------------------------------------------------------
-// This helper method checks whether an indirect damage has been induced given the moleculeID
+// This helper method checks whether an indirect damage has been induced given the moleculeID.
 //--------------------------------------------------------------------------------------------------
 G4bool ScoreClusteredDNADamage::IsDamageInflicted(G4int pMoleculeID, G4int pDNAVolumeID) {
 	G4float prob_damage = 0.;
@@ -729,6 +734,10 @@ G4bool ScoreClusteredDNADamage::IsDamageInflicted(G4int pMoleculeID, G4int pDNAV
 		return false;
 }
 
+
+//--------------------------------------------------------------------------------------------------
+// This helper method prints useful information about a given G4step.
+//--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::PrintStepInfo(G4Step* aStep) { // for debugging
 	G4cout << "\tpreStep volume: " << aStep->GetPreStepPoint()->GetPhysicalVolume()->GetName() << G4endl;
 	G4cout << "\tpostStep volume: " << aStep->GetPostStepPoint()->GetPhysicalVolume()->GetName() << G4endl;
@@ -1625,6 +1634,9 @@ void ScoreClusteredDNADamage::RecordCluster(DamageCluster& cluster) {
 	// Handle Complex DSB
 	else if (cluster.numDSB > 0) {
 		cluster.numDSB = cluster.numDSB/2;
+		cluster.numDSB_direct = cluster.numDSB_direct/2;
+		cluster.numDSB_indirect = cluster.numDSB_indirect/2;
+		cluster.numDSB_hybrid = cluster.numDSB_hybrid/2;
 
 		fComplexDSBSizes.push_back(cluster.end - cluster.start + 1);
 
@@ -1903,6 +1915,10 @@ void ScoreClusteredDNADamage::CreateFakeEnergyMap() {
 	// fFiberMapEdepStrand2Backbone[0] = back2;
 }
 
+
+//--------------------------------------------------------------------------------------------------
+// Helper function to print the contents of a 1D vector.
+//--------------------------------------------------------------------------------------------------
 void ScoreClusteredDNADamage::Print1DVectorContents(std::vector<G4int> pVector) {
 	G4cout << "\t";
 	for (G4int element : pVector) {
