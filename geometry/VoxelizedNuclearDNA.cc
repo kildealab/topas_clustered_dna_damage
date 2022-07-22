@@ -1,7 +1,7 @@
 // Component for VoxelizedNuclearDNA
 //
 //**************************************************************************************************
-// Author: Logan Montgomery
+// Author: Logan Montgomery, James Manalad
 // Based on code written by:
 //      - J Schuemann et al. (2019). DOI:10.1667/RR15226.1
 //      - A McNamara et al. (2018). DOI:10.1088/1361-6560/aad8eb

@@ -8,7 +8,7 @@ d:Sc/ClusterScorer/EnergyThresholdForHavingBD = 17.5 eV
 
 # Parameters of indirect DNA damage
 u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/OH = 0.4
-u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/OH = 0.0
+u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/OH = 0.4
 u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/OHm = 0.0
 u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/OHm = 0.0
 u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/e_aq = 0.0

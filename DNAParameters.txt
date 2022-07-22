@@ -10,7 +10,7 @@ i:Ts/RunVerbosity = 0
 i:Ts/EventVerbosity = 0
 i:Ts/TrackingVerbosity = 0
 i:Ts/SequenceVerbosity = 0
-i:Ts/ChemistryVerbosity = 1
+i:Ts/ChemistryVerbosity = 0
 
 #---------------------------------------------------------------------------------------------------
 # Geometry

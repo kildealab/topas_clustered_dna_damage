@@ -1,8 +1,9 @@
 // Scorer for ClusteredDNADamage
 //
 //**************************************************************************************************
-// Author: Logan Montgomery
+// Author: Logan Montgomery, James Manalad
 // Based on code written by:
+//      - H Zhu et al. (2020). DOI:10.1667/RR15531.1
 //      - J Schuemann et al. (2019). DOI:10.1667/RR15226.1
 //		- A McNamara et al. (2018). DOI:10.1088/1361-6560/aad8eb
 //      - E Delage et al. (2015). DOI:10.1016/j.cpc.2015.02.026
@@ -326,6 +327,8 @@ void ScoreClusteredDNADamage::ResolveParams() {
 	//----------------------------------------------------------------------------------------------
 	G4String* modules = fPm->GetStringVector(GetFullParmName("Modules"));
 	G4int numModules = fPm->GetVectorLength(GetFullParmName("Modules"));
+
+	// Check for chemistry module
 	fHasChemistryModule = false;
 	for (int i = 0; i < numModules; i++) {
 		modules[i].toLower();
@@ -338,6 +341,8 @@ void ScoreClusteredDNADamage::ResolveParams() {
 	if (fHasChemistryModule) {
 		G4ConfigurationIterator mol_iterator = G4MoleculeTable::Instance()->GetConfigurationIterator();
 		// G4MoleculeDefinitionIterator mol_iterator =	G4MoleculeTable::Instance()->GetDefintionIterator();
+
+		// Damage probabilities of radiolytic species to induce SSB and BD
 		while ((mol_iterator)()) {
 			G4String mol_name = mol_iterator.value()->GetUserID();
 			G4int mol_ID =  mol_iterator.value()->GetMoleculeID();
@@ -364,7 +369,7 @@ void ScoreClusteredDNADamage::ResolveParams() {
 			else
 				fMoleculeDamageProb_BD.emplace(mol_ID, 0.0);
 		}
-
+		// Species killed by DNA volumes
 		if (fPm->ParameterExists(GetFullParmName("SpeciesToKillByDNAVolumes"))) {
 			G4String* speciesToKillbyDNAVolumes_names = fPm->GetStringVector(GetFullParmName("SpeciesToKillByDNAVolumes"));
 			G4int vectorLength = fPm->GetVectorLength(GetFullParmName("SpeciesToKillByDNAVolumes"));
@@ -377,7 +382,7 @@ void ScoreClusteredDNADamage::ResolveParams() {
 		else {
 			fSpeciesToKillByDNAVolumes.push_back(G4MoleculeTable::Instance()->GetConfiguration("OH")->GetMoleculeID());
 		}
-
+		// Species killed by histone volumes
 		if (fPm->ParameterExists(GetFullParmName("SpeciesToKillByHistones"))) {
 			G4String* speciestoKillbyHistones_names = fPm->GetStringVector(GetFullParmName("SpeciesToKillByHistones"));
 			G4int vectorLength = fPm->GetVectorLength(GetFullParmName("SpeciesToKillByHistones"));
@@ -400,7 +405,7 @@ void ScoreClusteredDNADamage::ResolveParams() {
 	}
 
 	//----------------------------------------------------------------------------------------------
-	// Score direct or indirect damage
+	// Toggles to score direct or indirect damage
 	//----------------------------------------------------------------------------------------------
 	if ( fPm->ParameterExists(GetFullParmName("IncludeDirectDamage")))
 		fIncludeDirectDamage = fPm->GetBooleanParameter(GetFullParmName("IncludeDirectDamage"));
@@ -417,7 +422,7 @@ void ScoreClusteredDNADamage::ResolveParams() {
 	}
 
 	//----------------------------------------------------------------------------------------------
-	// Material of DNA residue volumes in which to score
+	// Material of DNA residue and histone volumes in which to score
 	//----------------------------------------------------------------------------------------------
 	G4String DNAMaterialName = "G4_WATER_DNA";
 	if ( fPm->ParameterExists(GetFullParmName("DNAMaterialName")))
@@ -526,11 +531,11 @@ G4double ScoreClusteredDNADamage::ConvertDoseThresholdToEnergy() {
 //--------------------------------------------------------------------------------------------------
 G4bool ScoreClusteredDNADamage::ProcessHits(G4Step* aStep,G4TouchableHistory*)
 {
-	fNumProcessHitsCalls++;
+	fNumProcessHitsCalls++; // for debugging purposes
 	G4double edep = aStep->GetTotalEnergyDeposit(); // In eV;
 	fTotalEdep += edep; // running sum of energy deposition in entire volume
 
-	// Material filtering (only proceed if in sensitive DNA volumes)
+	// Material filtering of pre-step and post-step (only proceed if a sensitive volume is involved)
 	G4Material* materialPreStep = aStep->GetPreStepPoint()->GetMaterial();
 	G4bool isPreStepDNAMaterial = (materialPreStep == fDNAMaterial);
 	G4bool isPreStepHistoneMaterial = (materialPreStep == fHistoneMaterial);
@@ -717,6 +722,7 @@ G4bool ScoreClusteredDNADamage::IsDamageInflicted(G4int pMoleculeID, G4int pDNAV
 		exit(0);
 	}
 
+	// Check if SSB or BD
 	if (pDNAVolumeID == fVolIdPhosphate || pDNAVolumeID == fVolIdDeoxyribose)
 		prob_damage = fMoleculeDamageProb_SSB[pMoleculeID];
 	else if (pDNAVolumeID == fVolIdBase)
@@ -1025,10 +1031,10 @@ void ScoreClusteredDNADamage::AbsorbResultsFromWorkerScorer(TsVScorer* workerSco
     AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand1Base,myWorkerScorer->fMapEdepStrand1Base);
     AbsorbDirDmgMapFromWorkerScorer(fMapEdepStrand2Base,myWorkerScorer->fMapEdepStrand2Base);
 
-		AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand1Backbone,myWorkerScorer->fMapIndDamageStrand1Backbone);
-		AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand2Backbone,myWorkerScorer->fMapIndDamageStrand2Backbone);
-		AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand1Base,myWorkerScorer->fMapIndDamageStrand1Base);
-		AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand2Base,myWorkerScorer->fMapIndDamageStrand2Base);
+    AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand1Backbone,myWorkerScorer->fMapIndDamageStrand1Backbone);
+    AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand2Backbone,myWorkerScorer->fMapIndDamageStrand2Backbone);
+    AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand1Base,myWorkerScorer->fMapIndDamageStrand1Base);
+    AbsorbIndDmgMapFromWorkerScorer(fMapIndDamageStrand2Base,myWorkerScorer->fMapIndDamageStrand2Base);
 	}
 }
 
@@ -1153,14 +1159,14 @@ void ScoreClusteredDNADamage::RecordDamage() {
 			G4int totalFiberSSB_direct = 0, totalFiberSSB_indirect = 0, totalFiberBD_direct = 0, totalFiberBD_indirect = 0;
 			G4int totalFiberDSB_direct = 0, totalFiberDSB_indirect = 0, totalFiberDSB_hybrid = 0;
 
-			// G4bool fIncludeHybridDamage = true;
-			if (fIncludeDirectDamage && fIncludeIndirectDamage) { // && fIncludeHybridDamage) {
+			// Hybrid DSBs
+			if (fIncludeDirectDamage && fIncludeIndirectDamage) {
 				fIndicesDSB_hybrid = RecordDSB(fIdHybrid);
 				totalFiberDSB_hybrid = fIndicesDSB_hybrid.size();
 				fTotalDSB_hybrid += totalFiberDSB_hybrid;
 				fTotalDSB += totalFiberDSB_hybrid;
 			}
-
+			// Direct DSBs, SSBs, and BDs
 			if (fIncludeDirectDamage) {
 				fIndicesDSB_direct = RecordDSB(fIdDirect);
 				totalFiberDSB_direct = fIndicesDSB_direct.size();
@@ -1175,7 +1181,7 @@ void ScoreClusteredDNADamage::RecordDamage() {
 				fTotalBD_direct += totalFiberBD_direct;
 				fTotalBD += totalFiberBD_direct;
 			}
-
+			// Indirect DSBs, SSBs, and BDs
 			if (fIncludeIndirectDamage) {
 				fIndicesDSB_indirect = RecordDSB(fIdIndirect);
 				totalFiberDSB_indirect = fIndicesDSB_indirect.size();
@@ -1387,6 +1393,7 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB(G4int pDamageCause)
 	if (fIndicesSSB1->size() == 0 || fIndicesSSB2->size() == 0)
 		return indicesDSB1D;
 
+	// sort SSBs according to index
 	if (fIndicesSSB1->size() > 1 && !std::is_sorted(fIndicesSSB1->begin(), fIndicesSSB1->end()))
 		std::sort(fIndicesSSB1->begin(), fIndicesSSB1->end());
 	if (fIndicesSSB2->size() > 1 && !std::is_sorted(fIndicesSSB2->begin(), fIndicesSSB2->end()))
@@ -1398,11 +1405,11 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB(G4int pDamageCause)
 	// Proceed until have completely processed SSBs in either strand
 	while (site1 != fIndicesSSB1->end() && site2 != fIndicesSSB2->end()) {
 		G4int siteDiff = *site2 - *site1; // separation in number of bp
-
 		G4bool isDSB = abs(siteDiff) <= fThresDistForDSB;
 		G4bool isDSBrecorded = isDSB;
 
 		G4bool isHybrid = false;
+		// Check damage type of SSB on strand 1 and on strand 2
 		G4bool isSite1Direct = IsElementInVector(*site1, fIndicesSSB1_direct);
 		G4bool isSite1Indirect = IsElementInVector(*site1, fIndicesSSB1_indirect);
 		G4bool isSite2Direct = IsElementInVector(*site2, fIndicesSSB2_direct);
@@ -1416,6 +1423,7 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB(G4int pDamageCause)
 				G4cerr << "Error: (While scoring DSB) CONTRADICTION! site2: " << *site2 << " is both direct and indirect!" << G4endl;
 				exit(0);
 			}
+			// Check if DSB is hybrid
 			isHybrid = (isSite1Direct && isSite2Indirect) || (isSite1Indirect && isSite2Direct);
 			isDSBrecorded = isHybrid;
 		}
@@ -1427,12 +1435,12 @@ std::vector<G4int> ScoreClusteredDNADamage::RecordDSB(G4int pDamageCause)
 				indicesDSB1D.push_back(*site1);
 				indicesDSB1D.push_back(*site2);
 			}
-			// Damage in site 2 is earler to damage in site 1
+			// Damage in site 2 is earlier to damage in site 1
 			else {
 				indicesDSB1D.push_back(*site2);
 				indicesDSB1D.push_back(*site1);
 			}
-
+			// Remove already-counted damage sites from list of uncounted damage indices
 			if (isHybrid) {
 				G4cout << "\tRecorded for hybrid damage: " << *site1 << ", " << *site2 << G4endl;
 				if (isSite1Direct && isSite2Indirect) {
@@ -1659,7 +1667,7 @@ void ScoreClusteredDNADamage::RecordCluster(DamageCluster& cluster) {
 
 		if ( hasDirectDSB && !hasIndirectSSB && !hasIndirectBD && !hasIndirectDSB && !hasHybridDSB)
 			fTotalComplexDSB_direct++;
-		else if (!hasDirectSSB && !hasDirectBD && !hasDirectDSB && hasIndirectDSB && !hasHybridDSB)
+		else if (hasIndirectDSB && !hasDirectSSB && !hasDirectBD && !hasDirectDSB && !hasHybridDSB)
 			fTotalComplexDSB_indirect++;
 		else
 			fTotalComplexDSB_hybrid++;
@@ -1684,7 +1692,7 @@ void ScoreClusteredDNADamage::RecordCluster(DamageCluster& cluster) {
 
 		if ( (hasDirectSSB || hasDirectBD) && !hasIndirectSSB && !hasIndirectBD)
 			fTotalNonDSBCluster_direct++;
-		else if (!hasDirectSSB && !hasDirectBD && (hasIndirectSSB || hasIndirectBD) )
+		else if ( (hasIndirectSSB || hasIndirectBD) && !hasDirectSSB && !hasDirectBD)
 			fTotalNonDSBCluster_indirect++;
 		else
 			fTotalNonDSBCluster_hybrid++;
@@ -1696,8 +1704,9 @@ void ScoreClusteredDNADamage::RecordCluster(DamageCluster& cluster) {
 
 //--------------------------------------------------------------------------------------------------
 // Combine class member vectors containing various types of damages into a single, ordered, vector
-// of all damges in a DNA fibre (both strands). Each vector element is a 2-element array containing
-// (i) the bp index of the damage and (ii) an integer indicating the type of damage (BD or SSB).
+// of all damges in a DNA fibre (both strands). Each vector element is a 3-element array containing
+// (i) the bp index of the damage, (ii) an integer indicating the type of damage (BD or SSB), and
+// (iii) an integer indicating the cause of damage (direct, indirect, or hybrid).
 //--------------------------------------------------------------------------------------------------
 std::vector<std::array<G4int,3>> ScoreClusteredDNADamage::CombineSimpleDamage() {
 	// G4cout << "COMBINING SIMPLE DAMAGE" << G4endl;
