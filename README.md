@@ -77,8 +77,8 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 | ----------- | ----------- |
 | damage_yields.phsp | Yields of [five types of DNA damage](#description) stratified according to their damage cause: direct action, indirect action, or both (hybrid)|
 | run_summary.csv | Details about the simulation run |
-| data_comp_dsb.csv | Cluster properties of every recorded complex DSB custer |
-| data_non_dsb.csv | Cluster properties of every recorded non-DSB custer  |
+| data_comp_dsb.csv | Cluster properties of every recorded complex DSB cluster |
+| data_non_dsb.csv | Cluster properties of every recorded non-DSB cluster  |
 
 ## License
 
@@ -98,7 +98,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * Each voxel contains 20 chromatin fibres.
 * Every fibre contains 18,000 DNA base pairs.
 * Nucleus is enclosed in a spherical cell volume (fibroblast model).
-* **v2 update**:
+* **_v2 update_**:
     * Unique identification of histone volumes via their composing material was added.
 
 ### Clustered DNA damage scorer
@@ -107,7 +107,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * Damage definitions (energy thresholds and separation distances) can be modified in the parameter file.
 * Default behaviour is to terminate simulation after a fixed number of histories.
 * Can alternatively terminate simulation after a certain dose deposition in the nucleus.
-* **v2 updates**:
+* **_v2 updates_**:
     * Simulation of indirect action events and indirect damage scoring using the model described in:
         * Zhu H et al. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
             * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
@@ -134,10 +134,10 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 
 ### Secondary particle data files
 * In a previous study, we evaluated the energy spectra and relative dose contributions of secondary particles produced by neutrons & 250 keV x-rays in human tissue.
-* For details see our paper:
+* For details, see our paper:
     * Lund CM, Famulari G, Montgomery L, Kildea J (2020). A microdosimetric analysis of the interactions of mono-energetic neutrons with human tissue. <em>Physica Medica</em> 73; 29-42.
         * DOI: [https://doi.org/10.1016/j.ejmp.2020.04.001](https://doi.org/10.1016/j.ejmp.2020.04.001)
-* These data are included as TOPAS parameter files in this repository
+* These data are included as TOPAS parameter files in this repository.
     * Spectra are located [here](https://github.com/McGillMedPhys/clustered_dna_damage/tree/master/spectra).
     * Relative dose values are located [here](https://github.com/McGillMedPhys/clustered_dna_damage/tree/master/relative_doses).
 * Naming convention of these files:
