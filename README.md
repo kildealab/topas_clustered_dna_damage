@@ -38,7 +38,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 ## Description
 
 * This application is intended to be used to simulate the induction of clustered DNA damage in a human nucleus.
-* We developed this application to compare neutron-induced direct clustered DNA damage with x-ray induced DNA damage in order to invesigate the energy dependence of neutron RBE.
+* We developed this application to compare neutron-induced direct and, with v2, indirect clustered DNA damage with x-ray induced DNA damage in order to invesigate the energy dependence of neutron RBE.
 * Specifically, the application produces yields of the following DNA damage:
     1. Single strand breaks (SSBs)
     2. Base lesions
@@ -98,7 +98,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * Each voxel contains 20 chromatin fibres.
 * Every fibre contains 18,000 DNA base pairs.
 * Nucleus is enclosed in a spherical cell volume (fibroblast model).
-* v2 update:
+* **v2 update**:
     * Unique identification of histone volumes via their composing material was added.
 
 ### Clustered DNA damage scorer
@@ -107,7 +107,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * Damage definitions (energy thresholds and separation distances) can be modified in the parameter file.
 * Default behaviour is to terminate simulation after a fixed number of histories.
 * Can alternatively terminate simulation after a certain dose deposition in the nucleus.
-* v2 updates:
+* **v2 updates**:
     * Simulation of indirect action events and indirect damage scoring using the model described in:
         * Zhu H et al. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
             * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
