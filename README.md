@@ -85,9 +85,9 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * This project is provided under the MIT license. See the [LICENSE file](LICENSE) for more info.
 * When using any component of this application, please be sure to cite our papers:
     * Montgomery L, Lund CM, Landry A, Kildea J (2021). Towards the characterization of neutron carcinogenesis through direct action simulations of clustered DNA damage. <em>Phys Med Biol</em> 66(20); 205011.
-    * DOI: [https://doi.org/10.1088/1361-6560/ac2998](https://doi.org/10.1088/1361-6560/ac2998)
+        * DOI: [https://doi.org/10.1088/1361-6560/ac2998](https://doi.org/10.1088/1361-6560/ac2998)
     * Manalad J, Montgomery L, Kildea J (2022). 
-    * DOI:
+        * DOI:
 
 ## Component details
 
@@ -110,7 +110,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * v2 updates:
     * Simulation of indirect action events and indirect damage scoring using the model described in:
         * Zhu H et al. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
-        * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
+            * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
     * Constraints simulated by default during the chemical stage:
         * ·OH radical tracks are terminated after an indirect action event (whether or not DNA damage was inflicted).
         * Radical tracks (·OH, e<sup>-</sup><sub>aq</sub>, and H· specifically) are terminated immediately upon diffusion into a histone volume.
@@ -136,7 +136,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * In a previous study, we evaluated the energy spectra and relative dose contributions of secondary particles produced by neutrons & 250 keV x-rays in human tissue.
 * For details see our paper:
     * Lund CM, Famulari G, Montgomery L, Kildea J (2020). A microdosimetric analysis of the interactions of mono-energetic neutrons with human tissue. <em>Physica Medica</em> 73; 29-42.
-    * DOI: [https://doi.org/10.1016/j.ejmp.2020.04.001](https://doi.org/10.1016/j.ejmp.2020.04.001)
+        * DOI: [https://doi.org/10.1016/j.ejmp.2020.04.001](https://doi.org/10.1016/j.ejmp.2020.04.001)
 * These data are included as TOPAS parameter files in this repository
     * Spectra are located [here](https://github.com/McGillMedPhys/clustered_dna_damage/tree/master/spectra).
     * Relative dose values are located [here](https://github.com/McGillMedPhys/clustered_dna_damage/tree/master/relative_doses).
