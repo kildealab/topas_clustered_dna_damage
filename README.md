@@ -1,10 +1,11 @@
-# TOPAS_Clustered_DNA_Damage
+# TOPAS_Clustered_DNA_Damage v2
 
 ![Logo](https://github.com/McGillMedPhys/clustered_dna_damage/blob/dev/repository_logo_figure.svg)
 
 This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage.
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5090104.svg)](https://doi.org/10.5281/zenodo.5090104)
+v1: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5090104.svg)](https://doi.org/10.5281/zenodo.5090104)
+v2: 
 
 ## Table of Contents
 
@@ -22,7 +23,7 @@ This repository contains a TOPAS-nBio application that can be used to simulate c
 
 Logan Montgomery, Christopher M Lund, James Manalad, Anthony Landry, John Kildea
 
-Contact email: logan.montgomery@mail.mcgill.ca
+Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 
 ## Features
 
@@ -48,17 +49,16 @@ Contact email: logan.montgomery@mail.mcgill.ca
 
 ## Dependencies
 
-* TOPAS v3.3.1
-* TOPAS-nBio 1.0 beta
+* TOPAS v3.6.1
+* TOPAS-nBio 1.0
 
-**Note**: This application was developed on OSX Mojave 10.14.6.
+**Note**: This application was developed on Ubuntu 20.04.2.
 
 ## Installation
 
 1. Download the latest version from the [releases page](https://github.com/McGillMedPhys/clustered_dna_damage/releases).
 2. Install the [dependencies](#dependencies).
-3. Make a minor addition to your TOPAS v.3.3.1 installation according to these [instructions](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/topas_mods/TsVGeometryComponent_mods.md).
-4. Install TOPAS_Clustered_DNA_Damage as any other TOPAS extension as per the [instructions provided by TOPAS](https://sites.google.com/a/topasmc.org/home/home).
+3. Install TOPAS_Clustered_DNA_Damage as any other TOPAS extension as per the [instructions provided by TOPAS](https://sites.google.com/a/topasmc.org/home/home).
     1. Place this repository in your `topas_extensions` directory.
     2. Recompile TOPAS, e.g:
         * `cd /path/to/topas`
@@ -74,7 +74,7 @@ Contact email: logan.montgomery@mail.mcgill.ca
 
 | File | Description |
 | ----------- | ----------- |
-| damage_yields.phsp | Yields of [five types of DNA damage](#description) |
+| damage_yields.phsp | Yields of [five types of DNA damage](#description) stratified according to their damage cause: direct action, indirect action, or both (hybrid)|
 | run_summary.csv | Details about the simulation run |
 | data_comp_dsb.csv | Cluster properties of every recorded complex DSB custer |
 | data_non_dsb.csv | Cluster properties of every recorded non-DSB custer  |
@@ -82,9 +82,11 @@ Contact email: logan.montgomery@mail.mcgill.ca
 ## License
 
 * This project is provided under the MIT license. See the [LICENSE file](LICENSE) for more info.
-* When using any component of this application, please be sure to cite our paper:
+* When using any component of this application, please be sure to cite our papers:
     * Montgomery L, Lund CM, Landry A, Kildea J (2021). Towards the characterization of neutron carcinogenesis through direct action simulations of clustered DNA damage. <em>Phys Med Biol</em> 66(20); 205011.
     * DOI: [https://doi.org/10.1088/1361-6560/ac2998](https://doi.org/10.1088/1361-6560/ac2998)
+    * Manalad J, Montgomery L, Kildea J (2022). 
+    * DOI:
 
 ## Component details
 
@@ -95,7 +97,7 @@ Contact email: logan.montgomery@mail.mcgill.ca
 * Each voxel contains 20 chromatin fibres.
 * Every fibre contains 18,000 DNA base pairs.
 * Nucleus is enclosed in a spherical cell volume (fibroblast model).
-#### * v2 update:
+* v2 update:
     * Unique identification of histone volumes via their composing material was added.
 
 ### Clustered DNA damage scorer
@@ -104,7 +106,7 @@ Contact email: logan.montgomery@mail.mcgill.ca
 * Damage definitions (energy thresholds and separation distances) can be modified in the parameter file.
 * Default behaviour is to terminate simulation after a fixed number of histories.
 * Can alternatively terminate simulation after a certain dose deposition in the nucleus.
-#### * v2 updates:
+* v2 updates:
     * Simulation of indirect action events and indirect damage scoring using the model described in:
         * Zhu H et al. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
         * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
