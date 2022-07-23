@@ -1,10 +1,12 @@
-# TOPAS_Clustered_DNA_Damage
+# TOPAS_Clustered_DNA_Damage v2
 
 ![Logo](https://github.com/McGillMedPhys/clustered_dna_damage/blob/dev/repository_logo_figure.svg)
 
-This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage.
+This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage. The v1 of this software was limited to the simulation of direct action in prompt DNA damage. This version (v2) extends v1 by modeling indirect action. The updates that come along with v2 are specified [below](#component-details).
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5090104.svg)](https://doi.org/10.5281/zenodo.5090104)
+v1: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5090104.svg)](https://doi.org/10.5281/zenodo.5090104)
+
+v2:
 
 ## Table of Contents
 
@@ -22,7 +24,7 @@ This repository contains a TOPAS-nBio application that can be used to simulate c
 
 Logan Montgomery, Christopher M Lund, James Manalad, Anthony Landry, John Kildea
 
-Contact email: logan.montgomery@mail.mcgill.ca
+Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 
 ## Features
 
@@ -36,7 +38,7 @@ Contact email: logan.montgomery@mail.mcgill.ca
 ## Description
 
 * This application is intended to be used to simulate the induction of clustered DNA damage in a human nucleus.
-* We developed this application to compare neutron-induced direct clustered DNA damage with x-ray induced DNA damage in order to invesigate the energy dependence of neutron RBE.
+* We developed this application to compare neutron-induced direct and, with v2, indirect clustered DNA damage with x-ray induced DNA damage in order to invesigate the energy dependence of neutron RBE.
 * Specifically, the application produces yields of the following DNA damage:
     1. Single strand breaks (SSBs)
     2. Base lesions
@@ -48,17 +50,16 @@ Contact email: logan.montgomery@mail.mcgill.ca
 
 ## Dependencies
 
-* TOPAS v3.3.1
-* TOPAS-nBio 1.0 beta
+* TOPAS v3.6.1
+* TOPAS-nBio 1.0
 
-**Note**: This application was developed on OSX Mojave 10.14.6.
+**Note**: This application was developed on Ubuntu 20.04.2.
 
 ## Installation
 
 1. Download the latest version from the [releases page](https://github.com/McGillMedPhys/clustered_dna_damage/releases).
 2. Install the [dependencies](#dependencies).
-3. Make a minor addition to your TOPAS v.3.3.1 installation according to these [instructions](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/topas_mods/TsVGeometryComponent_mods.md).
-4. Install TOPAS_Clustered_DNA_Damage as any other TOPAS extension as per the [instructions provided by TOPAS](https://sites.google.com/a/topasmc.org/home/home).
+3. Install TOPAS_Clustered_DNA_Damage as any other TOPAS extension as per the [instructions provided by TOPAS](https://sites.google.com/a/topasmc.org/home/home).
     1. Place this repository in your `topas_extensions` directory.
     2. Recompile TOPAS, e.g:
         * `cd /path/to/topas`
@@ -74,17 +75,19 @@ Contact email: logan.montgomery@mail.mcgill.ca
 
 | File | Description |
 | ----------- | ----------- |
-| damage_yields.phsp | Yields of [five types of DNA damage](#description) |
+| damage_yields.phsp | Yields of [five types of DNA damage](#description) stratified according to their damage cause: direct action, indirect action, or both (hybrid)|
 | run_summary.csv | Details about the simulation run |
-| data_comp_dsb.csv | Cluster properties of every recorded complex DSB custer |
-| data_non_dsb.csv | Cluster properties of every recorded non-DSB custer  |
+| data_comp_dsb.csv | Cluster properties of every recorded complex DSB cluster |
+| data_non_dsb.csv | Cluster properties of every recorded non-DSB cluster  |
 
 ## License
 
 * This project is provided under the MIT license. See the [LICENSE file](LICENSE) for more info.
-* When using any component of this application, please be sure to cite our paper:
+* When using any component of this application, please be sure to cite our papers:
     * Montgomery L, Lund CM, Landry A, Kildea J (2021). Towards the characterization of neutron carcinogenesis through direct action simulations of clustered DNA damage. <em>Phys Med Biol</em> 66(20); 205011.
-    * DOI: [https://doi.org/10.1088/1361-6560/ac2998](https://doi.org/10.1088/1361-6560/ac2998)
+        * DOI: [https://doi.org/10.1088/1361-6560/ac2998](https://doi.org/10.1088/1361-6560/ac2998)
+    * Manalad J, Montgomery L, Kildea J (2022).
+        * DOI:
 
 ## Component details
 
@@ -95,7 +98,7 @@ Contact email: logan.montgomery@mail.mcgill.ca
 * Each voxel contains 20 chromatin fibres.
 * Every fibre contains 18,000 DNA base pairs.
 * Nucleus is enclosed in a spherical cell volume (fibroblast model).
-#### * v2 update:
+* **_v2 update_**:
     * Unique identification of histone volumes via their composing material was added.
 
 ### Clustered DNA damage scorer
@@ -104,10 +107,10 @@ Contact email: logan.montgomery@mail.mcgill.ca
 * Damage definitions (energy thresholds and separation distances) can be modified in the parameter file.
 * Default behaviour is to terminate simulation after a fixed number of histories.
 * Can alternatively terminate simulation after a certain dose deposition in the nucleus.
-#### * v2 updates:
+* **_v2 updates_**:
     * Simulation of indirect action events and indirect damage scoring using the model described in:
-        * Zhu H et al. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
-        * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
+        * Zhu H _et al_. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
+            * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
     * Constraints simulated by default during the chemical stage:
         * ·OH radical tracks are terminated after an indirect action event (whether or not DNA damage was inflicted).
         * Radical tracks (·OH, e<sup>-</sup><sub>aq</sub>, and H· specifically) are terminated immediately upon diffusion into a histone volume.
@@ -131,10 +134,10 @@ Contact email: logan.montgomery@mail.mcgill.ca
 
 ### Secondary particle data files
 * In a previous study, we evaluated the energy spectra and relative dose contributions of secondary particles produced by neutrons & 250 keV x-rays in human tissue.
-* For details see our paper:
+* For details, see our paper:
     * Lund CM, Famulari G, Montgomery L, Kildea J (2020). A microdosimetric analysis of the interactions of mono-energetic neutrons with human tissue. <em>Physica Medica</em> 73; 29-42.
-    * DOI: [https://doi.org/10.1016/j.ejmp.2020.04.001](https://doi.org/10.1016/j.ejmp.2020.04.001)
-* These data are included as TOPAS parameter files in this repository
+        * DOI: [https://doi.org/10.1016/j.ejmp.2020.04.001](https://doi.org/10.1016/j.ejmp.2020.04.001)
+* These data are included as TOPAS parameter files in this repository.
     * Spectra are located [here](https://github.com/McGillMedPhys/clustered_dna_damage/tree/master/spectra).
     * Relative dose values are located [here](https://github.com/McGillMedPhys/clustered_dna_damage/tree/master/relative_doses).
 * Naming convention of these files:
