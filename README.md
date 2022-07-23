@@ -109,7 +109,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * Can alternatively terminate simulation after a certain dose deposition in the nucleus.
 * **_v2 updates_**:
     * Simulation of indirect action events and indirect damage scoring using the model described in:
-        * Zhu H et al. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
+        * Zhu H _et al_. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
             * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
     * Constraints simulated by default during the chemical stage:
         * ·OH radical tracks are terminated after an indirect action event (whether or not DNA damage was inflicted).
