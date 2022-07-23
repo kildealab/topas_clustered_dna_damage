@@ -2,9 +2,10 @@
 
 ![Logo](https://github.com/McGillMedPhys/clustered_dna_damage/blob/dev/repository_logo_figure.svg)
 
-This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage.
+This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage. The v1 of this software was limited to the simulation of direct action in prompt DNA damage. This version (v2) extends v1 by modeling indirect action. The updates that come along with v2 are specified [below](#component-details).
 
 v1: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5090104.svg)](https://doi.org/10.5281/zenodo.5090104)
+
 v2: 
 
 ## Table of Contents
