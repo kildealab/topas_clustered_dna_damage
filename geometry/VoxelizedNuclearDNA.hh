@@ -6,7 +6,7 @@
 //      - S Meylan et al. (2017). DOI:10.1038/s41598-017-11851-4
 //
 // This class is a custom Topas geometry component that creates a nucleus of DNA that is comprised
-// of one or more voxels, each of which contains at least one chromatin fiber. 
+// of one or more voxels, each of which contains at least one chromatin fiber.
 //**************************************************************************************************
 
 #ifndef VoxelizedNuclearDNA_hh
@@ -25,7 +25,7 @@
 struct DNAPlacementData;
 
 class VoxelizedNuclearDNA : public TsVGeometryComponent
-{    
+{
 public:
     //----------------------------------------------------------------------------------------------
     // Constructor. Initialize member variables using a variety of methods.
@@ -37,20 +37,20 @@ public:
     // Destructor
     //----------------------------------------------------------------------------------------------
 	~VoxelizedNuclearDNA();
-    
+
     //----------------------------------------------------------------------------------------------
     // Construct the geometry.
     //----------------------------------------------------------------------------------------------
-	G4VPhysicalVolume* Construct(); 
+	G4VPhysicalVolume* Construct();
 
     //----------------------------------------------------------------------------------------------
     // Read in parameters from the Topas parameter file & save values in some member variables.
     //----------------------------------------------------------------------------------------------
-    void ResolveParameters();   
-      
+    void ResolveParameters();
+
 private:
     //----------------------------------------------------------------------------------------------
-    // Create and return a logical volume for a chromatin fiber. 
+    // Create and return a logical volume for a chromatin fiber.
     //----------------------------------------------------------------------------------------------
     G4LogicalVolume *BuildLogicFiber(std::vector<std::vector<DNAPlacementData> > *dnaVolPos,
                                      std::vector<G4ThreeVector> *posNucleo,
@@ -63,7 +63,7 @@ private:
     // Content: vector of corresponding logical volumes (each vector size = 200)
     //----------------------------------------------------------------------------------------------
     std::map<G4String, std::vector<G4LogicalVolume *> >* CreateNucleosomeCuttedSolidsAndLogicals(
-        std::vector<DNAPlacementData> *nucleosomeVolumePositions, 
+        std::vector<DNAPlacementData> *nucleosomeVolumePositions,
         std::map<G4ThreeVector, G4double> *posAndRadiusMap);
 
     //----------------------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ private:
                              G4String volName = "");
 
     //----------------------------------------------------------------------------------------------
-    // Arrange identical DNA fibers in a cubic voxel. Return the logical volume of that voxel. 
+    // Arrange identical DNA fibers in a cubic voxel. Return the logical volume of that voxel.
     //----------------------------------------------------------------------------------------------
     G4LogicalVolume *ConstructLogicalVoxel(G4LogicalVolume* logicalFiber);
 
@@ -131,6 +131,8 @@ private:
     G4Material* fWater;
     G4String fDNAMaterialName;
     G4Material* fDNAMaterial;
+		G4String fHistoneMaterialName;
+    G4Material* fHistoneMaterial;
 
     // This map is indexed as moleculeName: <x, y, z, copyNumber, strand>
     std::map<G4String, std::vector<std::vector<double> > >* fpDnaMoleculePositions;

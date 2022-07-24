@@ -1,14 +1,14 @@
 // Component for VoxelizedNuclearDNA
 //
 //**************************************************************************************************
-// Author: Logan Montgomery
+// Author: Logan Montgomery, James Manalad
 // Based on code written by:
 //      - J Schuemann et al. (2019). DOI:10.1667/RR15226.1
 //      - A McNamara et al. (2018). DOI:10.1088/1361-6560/aad8eb
 //      - S Meylan et al. (2017). DOI:10.1038/s41598-017-11851-4
 //
 // This class is a custom Topas geometry component that creates a nucleus of DNA that is comprised
-// of one or more voxels, each of which contains at least one chromatin fiber. 
+// of one or more voxels, each of which contains at least one chromatin fiber.
 //**************************************************************************************************
 
 #include "VoxelizedNuclearDNA.hh"
@@ -60,7 +60,7 @@ struct DNAPlacementData
 VoxelizedNuclearDNA::VoxelizedNuclearDNA(TsParameterManager* pM, TsExtensionManager* eM, TsMaterialManager* mM, TsGeometryManager* gM,
 			 TsVGeometryComponent* parentComponent, G4VPhysicalVolume* parentVolume, G4String& name) :
 TsVGeometryComponent(pM, eM, mM, gM, parentComponent, parentVolume, name)
-{  
+{
     ResolveParameters(); // initialize some member variables using Topas parameter file
 
     fGeoCalculation = new GeoCalculationV2(0, 1.);
@@ -68,8 +68,8 @@ TsVGeometryComponent(pM, eM, mM, gM, parentComponent, parentVolume, name)
     fpDnaMoleculePositions = new std::map<G4String, std::vector<std::vector<G4double> > >();
 
     //----------------------------------------------------------------------------------------------
-    // A GeoCalculation object is used set various parameters for the configuration of DNA content 
-    // in single chromatin fiber. 
+    // A GeoCalculation object is used set various parameters for the configuration of DNA content
+    // in single chromatin fiber.
     //----------------------------------------------------------------------------------------------
     fFiberRadius = 17.*nm;
     fFiberHalfLength = 68.*nm;
@@ -97,6 +97,7 @@ TsVGeometryComponent(pM, eM, mM, gM, parentComponent, parentVolume, name)
     fWater = GetMaterial(fWaterName);
 
     fDNAMaterial = GetMaterial(fDNAMaterialName);
+    fHistoneMaterial = GetMaterial(fHistoneMaterialName);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -157,9 +158,13 @@ void VoxelizedNuclearDNA::ResolveParameters() {
 
     if (fPm->ParameterExists(GetFullParmName("DNAMaterialName")))
         fDNAMaterialName = fPm->GetStringParameter(GetFullParmName("DNAMaterialName"));
-    else 
-        fDNAMaterialName = "G4_WATER_CLONE";
-    
+    else
+        fDNAMaterialName = "G4_WATER_DNA";
+    if (fPm->ParameterExists(GetFullParmName("HistoneMaterialName")))
+        fHistoneMaterialName = fPm->GetStringParameter(GetFullParmName("HistoneMaterialName"));
+    else
+        fHistoneMaterialName = "G4_WATER_HISTONE";
+
     // Parameters not specific to this extension. Can't/don't need to use GetFullParmName()
     fCheckForOverlaps = fPm->GetBooleanParameter("Ge/CheckForOverlaps");
     fOverlapsResolution = fPm->GetIntegerParameter("Ge/CheckForOverlapsResolution");
@@ -176,7 +181,7 @@ G4VPhysicalVolume* VoxelizedNuclearDNA::Construct()
 	BeginConstruction();
 
     //----------------------------------------------------------------------------------------------
-    // Construct the envelope (wrapper) volume.  
+    // Construct the envelope (wrapper) volume.
     //----------------------------------------------------------------------------------------------
     G4double envelopeSideLength = fNumVoxelsPerSide * fVoxelSideLength;
     G4Box* sWrapper = new G4Box("solid_wrapper", envelopeSideLength, envelopeSideLength, envelopeSideLength);
@@ -200,8 +205,8 @@ G4VPhysicalVolume* VoxelizedNuclearDNA::Construct()
 
         //------------------------------------------------------------------------------------------
         // Generate cubic arrangement of voxels using replica volumes. When doing nested replica
-        // volumes, start construction with the outermost replicated direction and "reserve" the 
-        // space. Then fill that space with nested replicas as shown below. 
+        // volumes, start construction with the outermost replicated direction and "reserve" the
+        // space. Then fill that space with nested replicas as shown below.
         //------------------------------------------------------------------------------------------
         G4double nucleusSideLength = fVoxelSideLength * fNumVoxelsPerSide;
 
@@ -228,13 +233,13 @@ G4VPhysicalVolume* VoxelizedNuclearDNA::Construct()
             pFiber = CreatePhysicalVolume("Fiber", lFiber, fEnvelopePhys);
         }
     }
-    
+
 	return fEnvelopePhys;
 }
 
 
 //--------------------------------------------------------------------------------------------------
-// Create and return a logical volume for a chromatin fiber. 
+// Create and return a logical volume for a chromatin fiber.
 // Within this logical volume are the physical volumes for the histones, the resiudes and their
 // hydration shells. Solids and logicals are generated for the histones within this metohd directly,
 // whereas those for the residues are generated using CreateNucleosomeCuttedSolidsAndLogicals().
@@ -251,7 +256,7 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
     if(fSugarTHFRadius==-1||fSugarTMPRadius==-1||fBaseRadius==-1||fFiberPitch==-1||fFiberNbNuclPerTurn==-1
             ||fNumNucleosomePerFiber==-1||fNumBpPerNucleosome==-1||fHistoneHeight==-1||fHistoneRadius==-1)
     {
-        G4cerr<<"FatalError: VoxelizedNuclearDNA::BuildLogicFiber. A class parameter has not been " 
+        G4cerr<<"FatalError: VoxelizedNuclearDNA::BuildLogicFiber. A class parameter has not been "
             << "initialized and its value is still negative"<<G4endl;
         std::exit(EXIT_FAILURE);
     }
@@ -266,7 +271,7 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
     }
     else {
         logicFiber = CreateLogicalVolume("Fiber",fWaterName,solidFiber);
-    }  
+    }
 
     // If not building DNA in the fiber, return now with empty fiber (for visualization of large geometries)
     if (!fFillFibersWithDNA) {
@@ -280,14 +285,14 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
 
     G4LogicalVolume* logicHistone;
     if (fUseG4Volumes) {
-        logicHistone = new G4LogicalVolume(solidHistone,fWater,"Histone");
+        logicHistone = new G4LogicalVolume(solidHistone,fHistoneMaterial,"Histone");
     }
     else {
-        logicHistone = CreateLogicalVolume("Histone",fWaterName,solidHistone);
-    }  
+        logicHistone = CreateLogicalVolume("Histone",fHistoneMaterialName,solidHistone);
+    }
 
     //----------------------------------------------------------------------------------------------
-    // Generate logical volumes for the nucleotide base pairs. 
+    // Generate logical volumes for the nucleotide base pairs.
     //----------------------------------------------------------------------------------------------
     // For the positions, only use the nucleosome #2 (index=1). It is a "middle" nucleosome and
     // thus, the two extremities will be cut to allow for  proper linking of one nucleosome to the
@@ -322,10 +327,10 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
     std::vector<G4ThreeVector> posSugarTHF2Vect;
     std::vector<G4ThreeVector> posSugarTMP2Vect;
 
-    // Get the bp volume positions of the middle basis nucleosome (which is used to generate cut 
+    // Get the bp volume positions of the middle basis nucleosome (which is used to generate cut
     // solids) and save in a vector to be accessed & rotated in the following forloop
     for(int j=0;j<fNumBpPerNucleosome;++j)
-    {        
+    {
         posSugarTMP1 = dnaVolPos->at(1)[j].posSugarTMP1;
         posSugarTHF1 = dnaVolPos->at(1)[j].posSugarTHF1;
         posBase1 = dnaVolPos->at(1)[j].posBase1;
@@ -354,11 +359,11 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
     //----------------------------------------------------------------------------------------------
     // z shift to be applied when positioning subsequent nucleosomes
     //----------------------------------------------------------------------------------------------
-    G4double zShift = fFiberPitch/fFiberNbNuclPerTurn; 
+    G4double zShift = fFiberPitch/fFiberNbNuclPerTurn;
     G4int count = 0;
 
     //----------------------------------------------------------------------------------------------
-    // Fill the chromatin fiber with DNA by iterating over each nucleosome & each nucleotide base 
+    // Fill the chromatin fiber with DNA by iterating over each nucleosome & each nucleotide base
     // pair within each nucleosome. Create physical volumes using the already-created logical
     // volumes.
     //----------------------------------------------------------------------------------------------
@@ -392,7 +397,7 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
                 posBase1 = posBase1Vect[j].rotateZ(-fFiberDeltaAngle);
                 posBase2 = posBase2Vect[j].rotateZ(-fFiberDeltaAngle);
                 posSugarTHF2 = posSugarTHF2Vect[j].rotateZ(-fFiberDeltaAngle);
-                posSugarTMP2 = posSugarTMP2Vect[j].rotateZ(-fFiberDeltaAngle);  
+                posSugarTMP2 = posSugarTMP2Vect[j].rotateZ(-fFiberDeltaAngle);
             }
             else
             {
@@ -401,7 +406,7 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
                 posBase1 = posBase1Vect[j].rotateZ(fFiberDeltaAngle);
                 posBase2 = posBase2Vect[j].rotateZ(fFiberDeltaAngle);
                 posSugarTHF2 = posSugarTHF2Vect[j].rotateZ(fFiberDeltaAngle);
-                posSugarTMP2 = posSugarTMP2Vect[j].rotateZ(fFiberDeltaAngle);   
+                posSugarTMP2 = posSugarTMP2Vect[j].rotateZ(fFiberDeltaAngle);
             }
 
             //--------------------------------------------------------------------------------------
@@ -428,9 +433,9 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
             // Place physical volumes for residues. 5 values for each physical volume
             // are recorded as a vector, specific to the current bp index, within the correct
             // map key:value pair of fpDnaMoleculePositions. Note the physical volumes themselves
-            // not recorded in the map.  
+            // not recorded in the map.
             // These values are: x, y, z, bp index (i.e. 1 - 200), nucleotide index (i.e. 1 or 2).
-            // e.g. To get the x coordinate of the 150th sugar volume in the second DNA strand of 
+            // e.g. To get the x coordinate of the 150th sugar volume in the second DNA strand of
             // the 7th nucleosome: (*fpDnaMoleculePositions)["Desoxyribose"][(6*200*2)+(149*2)+2][0]
             //--------------------------------------------------------------------------------------
             G4int bp_index = (i*fNumBpPerNucleosome)+j;
@@ -598,7 +603,7 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
         //------------------------------------------------------------------------------------------
         G4ThreeVector posHistoneForNucleo = posHistone;
         // Rotate. Not really necessary
-        posHistoneForNucleo.rotateZ(i*fFiberDeltaAngle); 
+        posHistoneForNucleo.rotateZ(i*fFiberDeltaAngle);
         // Apply a z shift, specific to each nucleosome, to span length of fiber
         posHistoneForNucleo += G4ThreeVector(0.,0.,i*zShift);
         // Apply shift such that fiber helix construction begins at at one end.
@@ -608,10 +613,10 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
         G4String histName = "histone_" + std::to_string(i);
         G4VPhysicalVolume* pHistone;
         if (fUseG4Volumes){
-            pHistone = new G4PVPlacement(0,posHistoneForNucleo,logicHistone,histName,logicFiber,true,i);
+            pHistone = new G4PVPlacement(0,posHistoneForNucleo,logicHistone,histName,logicFiber,true,i+2000000);
         }
         else{
-            pHistone = CreatePhysicalVolume(histName,i,true,logicHistone,0,&posHistoneForNucleo,logicFiber);
+            pHistone = CreatePhysicalVolume(histName,i+2000000,true,logicHistone,0,&posHistoneForNucleo,logicFiber);
         }
         (*fpDnaMoleculePositions)["Histone"].push_back(std::vector<double>());
         (*fpDnaMoleculePositions)["Histone"].back().push_back(posHistoneForNucleo.getX());
@@ -640,7 +645,7 @@ G4LogicalVolume* VoxelizedNuclearDNA::BuildLogicFiber(std::vector<std::vector<DN
 // currently implemented/tested.
 //--------------------------------------------------------------------------------------------------
 std::map<G4String, std::vector<G4LogicalVolume*> >* VoxelizedNuclearDNA::CreateNucleosomeCuttedSolidsAndLogicals(
-    std::vector<DNAPlacementData>* nucleosomeVolumePositions, std::map<G4ThreeVector, 
+    std::vector<DNAPlacementData>* nucleosomeVolumePositions, std::map<G4ThreeVector,
     G4double>* posAndRadiusMap)
 {
     // This is the map to be returned
@@ -675,7 +680,7 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* VoxelizedNuclearDNA::CreateN
 
     //----------------------------------------------------------------------------------------------
     // Position variables for residues
-    //---------------------------------------------------------------------------------------------- 
+    //----------------------------------------------------------------------------------------------
     G4ThreeVector posSugarTMP1;
     G4ThreeVector posSugarTHF1;
     G4ThreeVector posBase1;
@@ -792,7 +797,7 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* VoxelizedNuclearDNA::CreateN
             logicBase2 = CreateLogicalVolume("Base2",fDNAMaterialName,base2);
             logicSugarTHF2 = CreateLogicalVolume("Sugar2",fDNAMaterialName,sugarTHF2);
             logicSugarTMP2 = CreateLogicalVolume("Phosphate2",fDNAMaterialName,sugarTMP2);
-        }  
+        }
 
         // Creation of hydration shells
         // logicSugarTMP1Water = new G4LogicalVolume(sugarTMP1Water,fDNAMaterial,"logic_sugarTMP_1_hydra");
@@ -819,7 +824,7 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* VoxelizedNuclearDNA::CreateN
         // (*logicSolidsMap)["sugarTHF2Water"].push_back(logicSugarTHF2Water);
         // (*logicSolidsMap)["sugarTMP2Water"].push_back(logicSugarTMP2Water);
     } // complete iterating over all bp in single nucleotide
-    
+
     // Note: each vector of the logicSolidsMap has 200 elements
     return logicSolidsMap;
 }
@@ -829,7 +834,7 @@ std::map<G4String, std::vector<G4LogicalVolume*> >* VoxelizedNuclearDNA::CreateN
 // Algorithm for cutting DNA residue solids to avoid overlaps.
 // Idea: we must have a reference and a target. The reference is the solid we are considering
 // (described by parameters solidOrbRef & posRef) and that could be cut if an overlap is
-// detected with the target solid. In a geometry, it implies we have to go through all the target 
+// detected with the target solid. In a geometry, it implies we have to go through all the target
 // solids for a given reference solid. Target solid info (position and radius) is included in tarMap
 // This method will return the cut spherical reference solid.
 //--------------------------------------------------------------------------------------------------
@@ -876,7 +881,7 @@ G4VSolid* VoxelizedNuclearDNA::CreateCutSolid(G4Orb *solidOrbRef,
             isOurVol = true;
         }
         //------------------------------------------------------------------------------------------
-        // Throw error if position of target and reference match more than once. Implies there are 
+        // Throw error if position of target and reference match more than once. Implies there are
         // two overlapping volumes at the same position.
         //------------------------------------------------------------------------------------------
         else if(distance == 0 && isOurVol)
@@ -886,7 +891,7 @@ G4VSolid* VoxelizedNuclearDNA::CreateCutSolid(G4Orb *solidOrbRef,
         }
         //------------------------------------------------------------------------------------------
         // If the reference and target are overlapping, cut the reference. However, the target will
-        // also be cut on another iteration of this loop. The cuts are performed at the "middle" 
+        // also be cut on another iteration of this loop. The cuts are performed at the "middle"
         // point of intersection between them. The mathematics proceed according to that for
         // sphere-sphere intersections.
         //------------------------------------------------------------------------------------------
@@ -902,12 +907,12 @@ G4VSolid* VoxelizedNuclearDNA::CreateCutSolid(G4Orb *solidOrbRef,
             //--------------------------------------------------------------------------------------
             // Displacement vector between target and reference
             G4ThreeVector displacement_vector = posTar - posRef;
-            // Find the middle overlap point between the target and reference 
+            // Find the middle overlap point between the target and reference
             G4double intersection = (pow(radiusRef,2)-pow(radiusTar,2)+pow(distance,2) ) / (2*distance) + sliceBox->GetZHalfLength();
             // Add small safety buffer
             intersection -= 0.001*nm;
             // Create a vector to the intersection position, where one edge of the slicing volume
-            // will be placed 
+            // will be placed
             G4ThreeVector posSlice = intersection *( displacement_vector/displacement_vector.getR() );
 
             //--------------------------------------------------------------------------------------
@@ -944,7 +949,7 @@ G4VSolid* VoxelizedNuclearDNA::CreateCutSolid(G4Orb *solidOrbRef,
 
 //--------------------------------------------------------------------------------------------------
 // This method arranges identical DNA fibers in a cubic voxel, and returns the logical volume of
-// that voxel. Current implementation places 20 fibers in fractal pattern, similar to that 
+// that voxel. Current implementation places 20 fibers in fractal pattern, similar to that
 // described by Zhu et al. (2020). DOI: 10.1667/RR15531.1
 //--------------------------------------------------------------------------------------------------
 G4LogicalVolume* VoxelizedNuclearDNA::ConstructLogicalVoxel(G4LogicalVolume* lFiber) {
@@ -1097,7 +1102,7 @@ G4LogicalVolume* VoxelizedNuclearDNA::ConstructLogicalVoxel(G4LogicalVolume* lFi
 // Helper function used if a geometrical overlap is detected. Return the standard Topas message
 // about geometry overlaps and exit gracefully.
 //--------------------------------------------------------------------------------------------------
-void VoxelizedNuclearDNA::ThrowOverlapError() 
+void VoxelizedNuclearDNA::ThrowOverlapError()
 {
     G4cout << "Topas is quitting due to the above geometry overlap problem." << G4endl;
     G4cout << "If you still want the TOPAS session to continue" << G4endl;
