@@ -2,7 +2,7 @@
 
 ![Logo](https://github.com/McGillMedPhys/clustered_dna_damage/blob/dev/repository_logo_figure.svg)
 
-This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage due to direct and indirect radiation action.
+This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage due to direct and indirect action of ionizing radiation.
 
 v1: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5090104.svg)](https://doi.org/10.5281/zenodo.5090104)
 
