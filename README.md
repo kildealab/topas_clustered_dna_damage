@@ -46,7 +46,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
     3. Double strand breaks (DSBs)
     4. Complex DSB clusters (clusters containing at least 1 DSB).
     5. Non-DSB clusters (clusters that don't contain any DSBs).
-* Most simulation parameters can be modified using the included parameter file.
+* Most simulation parameters can be modified using the included [parameter file](https://github.com/McGillMedPhys/topas_clustered_dna_damage/blob/indirect/DNAParameters.txt).
 * Details about each component of this application are provided [below](#component-details).
 
 ## Dependencies
@@ -107,8 +107,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
     * All radical tracks generated inside DNA and histone volumes are immediately terminated.
     * DNA and histone volumes can "scavenge" (terminate) radiolytic species.
 * Records the five types of DNA damage [mentioned above](#description) and their respective damage-inducing action.
-* Damage definitions (separation distances, energy thresholds, indirect damage probabilities) can be modified in the parameter file.
-    * An example can be found [here](https://github.com/McGillMedPhys/topas_clustered_dna_damage/blob/indirect/supportFiles/DNADamageParameters.txt)
+* Damage definitions (separation distances, energy thresholds, indirect damage probabilities) can be modified in the parameter file as shown [here](https://github.com/McGillMedPhys/topas_clustered_dna_damage/blob/indirect/supportFiles/DNADamageParameters.txt).
 * Other user-modifiable simulation parameters:
     * Toggles to score direct and indirect damage, and histone scavenging.
     * Molecule species scavenged by the DNA and histone volumes.
@@ -116,7 +115,6 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
     * Can alternatively terminate simulation after a certain dose deposition in the nucleus.
 * Supports multithreading.
 * Default parameter values related to indirect action and the chemical stage are described [below](#changes-from-last-version).
-
 
 ### Physics module
 * Source code file is located [here](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/physics/G4EmDNAPhysics_option2and4.cc).

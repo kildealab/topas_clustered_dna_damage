@@ -1,3 +1,5 @@
+# This is a supplementary parameter file included in DNAParameters.txt containing all parameters related to DNA damage.
+
 # Parameters to define DSBs and clustered DNA damage
 i:Sc/ClusterScorer/BasePairDistanceForDefiningDSB = 10
 i:Sc/ClusterScorer/BasePairDistanceForDefiningCluster = 40
@@ -7,6 +9,7 @@ d:Sc/ClusterScorer/EnergyThresholdForHavingSSB = 17.5 eV
 d:Sc/ClusterScorer/EnergyThresholdForHavingBD = 17.5 eV
 
 # Parameters of indirect DNA damage
+# Molecules that are not listed but available in the chemistry mdoel should be added here.
 u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/OH = 0.4
 u:Sc/ClusterScorer/DamageProbabilityOnInteraction/BD/OH = 0.4
 u:Sc/ClusterScorer/DamageProbabilityOnInteraction/SSB/OHm = 0.0
