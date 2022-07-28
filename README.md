@@ -39,7 +39,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 ## Description
 
 * This application is intended to be used to simulate the induction of clustered DNA damage in a human nucleus.
-* We developed this application to compare neutron-induced direct and, with v2, indirect clustered DNA damage with x-ray induced DNA damage in order to invesigate the energy dependence of neutron RBE.
+* We developed this application to compare neutron-induced direct and indirect clustered DNA damage with x-ray induced DNA damage in order to invesigate the energy dependence of neutron RBE.
 * Specifically, the application produces yields of the following DNA damage:
     1. Single strand breaks (SSBs)
     2. Base lesions
@@ -87,8 +87,8 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * When using any component of this application, please be sure to cite our papers:
     * Montgomery L, Lund CM, Landry A, Kildea J (2021). Towards the characterization of neutron carcinogenesis through direct action simulations of clustered DNA damage. <em>Phys Med Biol</em> 66(20); 205011.
         * DOI: [https://doi.org/10.1088/1361-6560/ac2998](https://doi.org/10.1088/1361-6560/ac2998)
-    * Manalad J, Montgomery L, Kildea J (2022).
-        * DOI:
+    * Manalad J, Montgomery L, Kildea J (2022). (coming soon)
+        * DOI: (coming soon)
 
 ## Component details
 
@@ -108,6 +108,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
     * DNA and histone volumes can "scavenge" (terminate) radiolytic species.
 * Records the five types of DNA damage [mentioned above](#description) and their respective damage-inducing action.
 * Damage definitions (separation distances, energy thresholds, indirect damage probabilities) can be modified in the parameter file.
+    * An example can be found [here](https://github.com/McGillMedPhys/topas_clustered_dna_damage/blob/indirect/supportFiles/DNADamageParameters.txt)
 * Other user-modifiable simulation parameters:
     * Toggles to score direct and indirect damage, and histone scavenging.
     * Molecule species scavenged by the DNA and histone volumes.
@@ -119,7 +120,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 
 ### Physics module
 * Source code file is located [here](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/physics/G4EmDNAPhysics_option2and4.cc).
-* Combines the GEANT4-DNA physics constructors: `G4EmDNAPhysics_option2` and `G4EmDNAPhysics\_option4`.
+* Combines the GEANT4-DNA physics constructors: `G4EmDNAPhysics_option2` and `G4EmDNAPhysics_option4`.
 * Physics models from `G4EmDNAPhysics_option4` for electrons between 10 eV and 10 keV.
 * Physics models from `G4EmDNAPhysics_option2` for electrons between 10 keV and 1 MeV.
 
