@@ -93,7 +93,6 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 ## Component details
 
 ### Nuclear DNA model
-
 * Source code file is located [here](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/geometry/VoxelizedNuclearDNA.cc).
 * Full human nuclear DNA model containing ~6.3 Gbp.
 * Cubic shape constructed using voxels.
@@ -102,7 +101,6 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * Nucleus is enclosed in a spherical cell volume (fibroblast model).
 
 ### Clustered DNA damage scorer
-
 * Source code file is located [here](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/scoring/ScoreClusteredDNADamage.cc).
 * Simulates direct and indirect prompt DNA damage.
 * During the chemical stage:
@@ -143,23 +141,23 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 ## Changes from last version
 
 ### Nuclear DNA model:
-    * Unique identification of histone volumes via their composing material was added.
+* Unique identification of histone volumes via their composing material was added.
 
-### Clustered DNA damage scorer
-    * Simulation of indirect action events and indirect damage scoring using the model described in:
-        * Zhu H _et al_. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
-            * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
-    * Constraints simulated by default during the chemical stage:
-        * All radical tracks generated inside DNA and histone volumes are immediately terminated.
-        * ·OH radical tracks are terminated after an indirect action event (whether or not DNA damage was inflicted).
-        * Radical tracks (·OH, e<sup>-</sup><sub>aq</sub>, and H· specifically) are terminated immediately upon diffusion into a histone volume.
-    * By default, only ·OH radicals can damage DNA volumes with a damage probability of 40%.
-        * The damage probabilities of other radiolytic species with backbone or nitrogenous base volumes can be modified via the parameter file.
-    * Other user-modifiable simulation parameters:
-        * Toggle to score direct damage.
-        * Toggle to score indirect damage.
-        * Toggle for histone scavenging.
-        * Molecule species scavenged by the DNA volumes.
-        * Molecule species scavenged by the histone volumes.
-    * The DNA damage clustering algorithm was updated to account for indirect and hybrid lesions.
-    * Multithreading support for indirect action simulations to decrease simulation time.
+### Clustered DNA damage scorer:
+* Simulation of indirect action events and indirect damage scoring using the model described in:
+    * Zhu H _et al_. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
+        * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
+* Constraints simulated by default during the chemical stage:
+    * All radical tracks generated inside DNA and histone volumes are immediately terminated.
+    * ·OH radical tracks are terminated after an indirect action event (whether or not DNA damage was inflicted).
+    * Radical tracks (·OH, e<sup>-</sup><sub>aq</sub>, and H· specifically) are terminated immediately upon diffusion into a histone volume.
+* By default, only ·OH radicals can damage DNA volumes with a damage probability of 40%.
+    * The damage probabilities of other radiolytic species with backbone or nitrogenous base volumes can be modified via the parameter file.
+* Other user-modifiable simulation parameters:
+    * Toggle to score direct damage.
+    * Toggle to score indirect damage.
+    * Toggle for histone scavenging.
+    * Molecule species scavenged by the DNA volumes.
+    * Molecule species scavenged by the histone volumes.
+* The DNA damage clustering algorithm was updated to account for indirect and hybrid lesions.
+* Multithreading support for indirect action simulations to decrease simulation time.
