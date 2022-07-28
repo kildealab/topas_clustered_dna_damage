@@ -93,6 +93,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 ## Component details
 
 ### Nuclear DNA model
+
 * Source code file is located [here](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/geometry/VoxelizedNuclearDNA.cc).
 * Full human nuclear DNA model containing ~6.3 Gbp.
 * Cubic shape constructed using voxels.
@@ -101,6 +102,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * Nucleus is enclosed in a spherical cell volume (fibroblast model).
 
 ### Clustered DNA damage scorer
+
 * Source code file is located [here](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/scoring/ScoreClusteredDNADamage.cc).
 * Simulates direct and indirect prompt DNA damage.
 * During the chemical stage:
