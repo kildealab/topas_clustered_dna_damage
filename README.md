@@ -4,9 +4,8 @@
 
 This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage due to the direct and indirect action of ionizing radiation.
 
-v1: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5090104.svg)](https://doi.org/10.5281/zenodo.5090104)
-
-v2:
+* v2: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6972469.svg)](https://doi.org/10.5281/zenodo.6972469)
+* v1: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5090104.svg)](https://doi.org/10.5281/zenodo.5090104)
 
 ## Table of Contents
 
