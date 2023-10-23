@@ -1206,45 +1206,44 @@ void ScoreSDD::ComputeDSB()
 
 
 			if (*site1 < *site2){
-				auto nextsite = std::next(site1);
-				while (*nextsite <= *site2){
-					if (IsElementInVector(*nextsite, fIndicesSSB1_direct)){
-						dsbBlock.push_back({*nextsite, fIdBckBone1, fIdDirect});
-        				RemoveElementFromVector(*nextsite, fIndicesSSB1_direct);
-					}
-					else if (IsElementInVector(*nextsite, fIndicesSSB1_indirect)){ 
-						dsbBlock.push_back({*nextsite, fIdBckBone1, fIdIndirect});
-        				RemoveElementFromVector(*nextsite, fIndicesSSB1_indirect);
-					}
-					else{
-						G4cout << "!!! Issue, the damage isnt contained in any list !!! " << G4endl;
-					}
-					fIndicesSSB1->erase(nextsite);
-					nextsite++; 
-				}
+    		auto nextsite = std::next(site1);
+    		while (nextsite != fIndicesSSB1->end() && *nextsite <= *site2){
+      		  if (IsElementInVector(*nextsite, fIndicesSSB1_direct)){
+        		    dsbBlock.push_back({*nextsite, fIdBckBone1, fIdDirect});
+         		   RemoveElementFromVector(*nextsite, fIndicesSSB1_direct);
+        		}
+        		else if (IsElementInVector(*nextsite, fIndicesSSB1_indirect)){ 
+           			 dsbBlock.push_back({*nextsite, fIdBckBone1, fIdIndirect});
+           			 RemoveElementFromVector(*nextsite, fIndicesSSB1_indirect);
+        		}
+        		else{
+            		G4cout << "!!! Issue, the damage isn't contained in any list !!! " << G4endl;
+        		}
+        		nextsite = fIndicesSSB1->erase(nextsite);
+   			 }
 			}
 
 			if (*site2 < *site1){
 				auto nextsite = std::next(site2);
-				while (*nextsite <= *site1){
+				while (nextsite != fIndicesSSB2->end() && *nextsite <= *site1){
 					if (IsElementInVector(*nextsite, fIndicesSSB2_direct)){
 						dsbBlock.push_back({*nextsite, fIdBckBone2, fIdDirect});
-        				RemoveElementFromVector(*nextsite, fIndicesSSB2_direct);
+						RemoveElementFromVector(*nextsite, fIndicesSSB2_direct);
 					}
 					else if (IsElementInVector(*nextsite, fIndicesSSB2_indirect)){ 
 						dsbBlock.push_back({*nextsite, fIdBckBone2, fIdIndirect});
-        				RemoveElementFromVector(*nextsite, fIndicesSSB2_indirect);
+						RemoveElementFromVector(*nextsite, fIndicesSSB2_indirect);
 					}
 					else{
-						G4cout << "!!! Issue, the damage isnt contained in any list !!! " << G4endl;
+						G4cout << "!!! Issue, the damage isn't contained in any list !!! " << G4endl;
 					}
-					fIndicesSSB2->erase(nextsite);
-					nextsite++;
+					nextsite = fIndicesSSB2->erase(nextsite);
 				}
 			}
 
 			site1 = fIndicesSSB1->erase(site1);
 			site2 = fIndicesSSB2->erase(site2);
+
 
 
 			InBlock_direct_bd1 = FindBaseDamage(fIndicesBD1_direct, min_site, max_site);
