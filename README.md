@@ -72,7 +72,7 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 
 ## Instructions
 
-###To use the clustered DNA damage scorer 
+### To use the clustered DNA damage scorer 
 
 1. Enter desired settings for the application by editing the parameter file (`DNAParameters.txt`)
 2. Run the application (`topas DNAParameters.txt`)
