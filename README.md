@@ -1,7 +1,5 @@
 # TOPAS_Clustered_DNA_Damage
 
-Test
-
 ![Logo](https://github.com/McGillMedPhys/clustered_dna_damage/blob/dev/repository_logo_figure.svg)
 
 This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage due to the direct and indirect action of ionizing radiation.
@@ -33,6 +31,8 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * Complete TOPAS parameter file required to run simulations.
 * Full human nuclear DNA model (implemented as a custom geometry component).
 * Algorithm to record clustered DNA damage (implemented as a custom scorer).
+* Standard DNA Damage (SDD) Data Format Scorer.
+* Script to count clustered DNA damage from SDD file. 
 * Physics constructor (implemented as a custom physics module).
 * Energy spectra and relative dose data files for secondary particles produced by neutrons and x-rays in human tissue.
 * All code is thoroughly documented.
@@ -49,6 +49,8 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
     5. Non-DSB clusters (clusters that don't contain any DSBs).
 * Most simulation parameters can be modified using the included [parameter file](https://github.com/McGillMedPhys/topas_clustered_dna_damage/blob/indirect/DNAParameters.txt).
 * Details about each component of this application are provided [below](#component-details).
+
+* Additionally we provide a scorer that output SDD files which are described in Schuemann et al. 2019 (https://doi.org/10.1667/RR15209.1). From the SDD file a compagnon python script provides a count of Complex DSB clusters as decribed above as well as a count of DSB clusters as descibed in Baiocco et al. 2016 (doi:10.1038/srep34033). 
 
 ## Dependencies
 
@@ -70,10 +72,22 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 
 ## Instructions
 
+###To use the clustered DNA damage scorer 
+
 1. Enter desired settings for the application by editing the parameter file (`DNAParameters.txt`)
 2. Run the application (`topas DNAParameters.txt`)
 
+
+### To use SDD scorer  
+
+1. Enter desired settings for the application by editing the parameter file (`SDDScorer_example.txt`)
+2. Run the application (`topas SDDScorer_example.txt`)
+3. If desired, feed the output SDD file to the "clusterer()" function of ComplexDSbCounter.py. 
+
 ## Output
+
+### Clustered DNA damage scorer 
+
 
 | File | Description |
 | ----------- | ----------- |
@@ -81,6 +95,15 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 | run_summary.csv | Details about the simulation run |
 | data_comp_dsb.csv | Cluster properties of every recorded complex DSB cluster |
 | data_non_dsb.csv | Cluster properties of every recorded non-DSB cluster  |
+
+### SDD scorer 
+| File | Description |
+| ----------- | ----------- |
+| SSDOuputs.txt | SDD file with the first seven fields used. |
+| AllEvent.txt | Each single damage listed line by line|
+| RealDoseDep.txt | Real dose dose depositied in the cell, the number of rows correponds to the number of thread used for the simulation. |
+
+
 
 ## License
 
@@ -117,6 +140,17 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * Supports multithreading.
 * Default parameter values related to indirect action and the chemical stage are described [below](#changes-from-last-version).
 
+### SDD Scorer 
+* Source code file is located [here](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/scoring/ScoreSDD.cc).
+* The physics and the chemistry used is the same as for the Clustered DNA damage scorer.
+* NOTE: Even provided the same seed, events using the Clustered DNA damage scorer andd the SDD Scorer will be different because added operations in the SDD scorer. 
+
+### SDD-to-cluster python script
+* Source code file is located [here](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/physics/G4EmDNAPhysics_option2and4.cc).
+* This script contains the function 'clusterer(SDD_file_path)' which takes the file path of an SDD and return three values in that order: total number of DSBs, Complex DSB clusters (Montgomery et al. 2021), and DSB clusters (Baiocco et al. 2016). 
+* NOTE: This script was written to read SDD as our scorer outputs them. Change in the number of field or fomat of fields will lead to an error. 
+
+
 ### Physics module
 * Source code file is located [here](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/physics/G4EmDNAPhysics_option2and4.cc).
 * Combines the GEANT4-DNA physics constructors: `G4EmDNAPhysics_option2` and `G4EmDNAPhysics_option4`.
@@ -140,24 +174,6 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 
 ## Changes from last version
 
-### Nuclear DNA model:
-* Unique identification of histone volumes via their composing material was added.
+### Nuclear DNA model: Continuous chromosome territories have been delimited.
 
-### Clustered DNA damage scorer:
-* Simulation of indirect action events and indirect damage scoring using the model described in:
-    * Zhu H _et al_. (2020). Cellular response to proton irradiation: a simulation study with TOPAS-nBio. <em>Radiation Research</em> 194; 9-21.
-        * DOI: [https://doi.org/10.1667/rr15531.1](https://doi.org/10.1667/rr15531.1)
-* Constraints simulated by default during the chemical stage:
-    * All radical tracks generated inside DNA and histone volumes are immediately terminated.
-    * ·OH radical tracks are terminated after an indirect action event (whether or not DNA damage was inflicted).
-    * Radical tracks (·OH, e<sup>-</sup><sub>aq</sub>, and H· specifically) are terminated immediately upon diffusion into a histone volume.
-* By default, only ·OH radicals can damage DNA volumes with a damage probability of 40%.
-    * The damage probabilities of other radiolytic species with backbone or nitrogenous base volumes can be modified via the parameter file.
-* Other user-modifiable simulation parameters:
-    * Toggle to score direct damage.
-    * Toggle to score indirect damage.
-    * Toggle for histone scavenging.
-    * Molecule species scavenged by the DNA volumes.
-    * Molecule species scavenged by the histone volumes.
-* The DNA damage clustering algorithm was updated to account for indirect and hybrid lesions.
-* Multithreading support for indirect action simulations to decrease simulation time.
+### SDD Scorer: An another scorer that ouput SDD files have been added. 
