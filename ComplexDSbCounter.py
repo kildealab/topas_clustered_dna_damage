@@ -98,7 +98,29 @@ def Count_BaioccoCluster(table):
         
 
 
-# In[16]:
+def GeoCluster(SDDFilePath,eps):
+    
+    blocks = read_after_header(SDDFilePath)
+    n = len(blocks)
+    
+    x, y, z = np.zeros((3,n))
+    for i in range(n):
+        v = blocks[i].split(";")[1].split(" / ")[1].split(", ")
+        x[i] = v[0]
+        y[i] = v[1]
+        z[i] = v[2]
+        
+    d, clusters_pos, SumVector = np.zeros((3,n))
+    
+    for i in range(n):
+        clusters_pos = np.zeros(n)
+        
+        d = np.sqrt((x-x[i])**2 + (y-y[i])**2 + (z-z[i])**2)
+        clusters_pos[np.where(d<eps)] = 1
+        
+        SumVector += clusters_pos
+        
+    return (np.sum(SumVector)-n)/2
 
 
 def clusterer(SDD_file_path):
@@ -135,8 +157,10 @@ def clusterer(SDD_file_path):
     BaioccoClusterNumber = Count_BaioccoCluster(Baiocco_table)
     
     NumberDSBs = len(Baiocco_table)
+
+    GeometricClusters = GeoCluster(SDD_file_path,0.00001)
         
-    return  NumberDSBs, ComplexDSBNumber, BaioccoClusterNumber
+    return  NumberDSBs, ComplexDSBNumber, BaioccoClusterNumber, GeometricClusters
         
         
         
