@@ -2,6 +2,8 @@ import csv
 import os
 import shutil
 import random
+import re 
+import glob
 from ComplexDSbCounter import clusterer
 #----------------- Defining some useful functions --------------------------
 
@@ -285,6 +287,47 @@ def run_aggregator(ressource_table, NumDamageRepeat, NumRepairRepeat = 0):
                     if rd_success and not dsb_success:
                         with open(FinalFile, "a") as f2:
                             f2.write(str(SimNumber) + ",0,0,0,0,0,0,0," + str(RealDose) + "\n")
+
+def DamarisEnabler(file_path):
+    
+    with open(file_path, "r") as f:
+        content = f.readlines()
+        
+    with open(file_path, "w") as f:
+        
+        Header = True 
+        
+        for line in content:
+            
+            if Header == False:
+                if re.compile(";").split(line)[5][7] != "0":
+                    f.write(line)
+                    
+            else:
+                if line == "Data entries, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0;\n":
+                    f.write("Data entries, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0;\n")
+                else:
+                    f.write(line)
+                    
+                if line == "***EndOfHeader***;\n":
+                    Header = False
+
+
+def DamarisSddMaker(src_dir, dest_dir, file_ending):
+    
+    if os.path.exists(dest_dir):
+        print(f"Destination directory {dest_dir} already exists. Please remove it or choose another location.")
+    else:
+        # Copy the entire directory
+        shutil.copytree(src_dir, dest_dir)
+
+    # Find all files in the directory that match the pattern
+    file_list = glob.glob(os.path.join(dest_dir, "**/*" + file_ending))
+
+    # Pass each file to the function
+    for file in file_list:
+        DamarisEnabler(file)
+
 
 
 
