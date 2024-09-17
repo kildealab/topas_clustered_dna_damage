@@ -240,7 +240,7 @@ def run_aggregator(ressource_table, NumDamageRepeat, NumRepairRepeat = 0):
                         DSBs, ComplexCluster, BaioccoCluster, GeomCluster =  clusterer(dsb)
 
                         with open(FinalFile, "a") as f2:
-                            f2.write(str(SimNumber) + "," + str(DSBs) + "," + str(ComplexCluster) + "," +  str(BaioccoCluster) + "," +  str(BaioccoCluster) + "," + str(RealDose) + "\n")
+                            f2.write(str(SimNumber) + "," + str(DSBs) + "," + str(ComplexCluster) + "," +  str(BaioccoCluster) + "," +  str(GeomCluster) + "," + str(RealDose) + "\n")
 
                     if rd_success and not dsb_success:
                         with open(FinalFile, "a") as f2:
