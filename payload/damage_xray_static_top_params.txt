@@ -1,0 +1,131 @@
+#---------------------------------------------------------------------------------------------------
+# Program control
+#---------------------------------------------------------------------------------------------------
+# Pauses
+Ts/PauseBeforeInit = "False" # This allows checking memory use before any physics tables are loaded
+Ts/PauseBeforeSequence = "False" # This allows checking memory use before any histories are run
+Ts/PauseBeforeQuit = "False" # This allows visualizing graphics before exiting
+# Verbosity
+i:Ts/RunVerbosity = 0
+i:Ts/EventVerbosity = 0
+i:Ts/TrackingVerbosity = 0
+i:Ts/SequenceVerbosity = 0
+i:Ts/ChemistryVerbosity = 0
+
+#---------------------------------------------------------------------------------------------------
+# Geometry
+#---------------------------------------------------------------------------------------------------
+# World
+d:Ge/World/HLX=10. um
+d:Ge/World/HLY=10. um
+d:Ge/World/HLZ=10. um
+s:Ge/World/Material = "Vacuum"
+
+# Spherical cell with volume ~2000 um^3, filled with water
+s:Ge/Cell/Type="TsSphere"
+s:Ge/Cell/Parent="World"
+d:Ge/Cell/RMax = 7.8 um
+d:Ge/Cell/RMin = 0. um
+s:Ge/Cell/Material = "G4_WATER"
+
+# DNA
+s:Ge/MyDNA/Type="VoxelizedNuclearDNA"
+s:Ge/MyDNA/Parent="Cell"
+s:Ge/MyDNA/Material="G4_WATER"
+b:Ge/MyDNA/BuildNucleus = "True" # If true, build voxelized cubic nucleus. If false, build single chromatin fiber
+i:Ge/MyDNA/NumVoxelsPerSide = 26 # Number of voxels per side of cubic nucleus
+d:Ge/MyDNA/VoxelSideLength = 150 nm # Modifying this value may break the geometry
+b:Ge/MyDNA/FillFibersWithDNA = "True" # Either fill chromatin fibers with DNA or generate empty fibers
+i:Ge/MyDNA/DnaNumNucleosomePerFiber = 90 # Max 90
+i:Ge/MyDNA/DnaNumBpPerNucleosome = 200 # Max 200
+b:Ge/MyDNA/CutVolumes = "True" # cut DNA residues to prevent overlaps
+
+# Materials
+s:Ge/MyDNA/DNAMaterialName = "G4_WATER_DNA"
+s:Ge/MyDNA/HistoneMaterialName = "G4_WATER_HISTONE"
+s:Ma/G4_WATER_DNA/CloneFromMaterial = "G4_WATER"
+d:Ma/G4_WATER_DNA/CloneWithDensity  = 1.407 g/cm3
+s:Ma/G4_WATER_HISTONE/CloneFromMaterial = "G4_WATER"
+d:Ma/G4_WATER_HISTONE/CloneWithDensity  = 1.0 g/cm3
+i:Ma/Verbosity = 1
+
+b:Ge/CheckForOverlaps = "False"
+b:Ge/CheckForUnusedComponents = "False"
+
+# Overall Visualization control
+b:Gr/Enable = "False"
+# Ts/UseQt = "True"
+
+s:Sc/ClusterScorer/MapFile  = "supportFiles/scoring/mapping.csv"
+
+#---------------------------------------------------------------------------------------------------
+# Physics
+#---------------------------------------------------------------------------------------------------
+# sv:Ph/Default/Modules = 2 "g4em-dna_opt2and4" "TsEmDNAChemistryExtended"
+sv:Ph/Default/Modules = 2 "g4em-dna_opt2and4" "TsEmDNAChemistry"
+# sv:Ph/Default/Modules = 2 "g4em-dna_opt2and4" "g4em-dna-chemistry"
+d:Ph/Default/EMRangeMin = 10. eV # minimum for EM tables
+b:Ph/Default/Fluorescence = "True"
+b:Ph/Default/Auger = "True"
+b:Ph/Default/AugerCascade = "True"
+b:Ph/Default/DeexcitationIgnoreCut = "True"
+
+#---------------------------------------------------------------------------------------------------
+# Chemistry
+#---------------------------------------------------------------------------------------------------
+# includeFile = supportFiles/TOPASChemistry_Extended.txt
+includeFile = supportFiles/TOPASChemistry.txt
+
+#---------------------------------------------------------------------------------------------------
+# Particle source (volumetric or surface based)
+#---------------------------------------------------------------------------------------------------
+s:So/Example/Type = "VolumeOrSurface"
+s:So/Example/Component = "Cell"
+s:So/Example/DistributePrimariesAtVolumeRegion = "volume"
+s:So/Example/DirectPrimariesTo = "isotropic"
+ic:So/Example/NumberOfHistoriesInRun = 1000000
+i:Ts/ShowHistoryCountAtInterval = 100
+s:So/Example/BeamEnergySpectrumType = "Continuous"
+
+# Example: irradiation using the electron component of 100 keV neutrons in the intermediate scoring volume
+# Specify the relative dose of the secondary particle species if relevant:
+# If using secondary particle spectra:
+# If not using secondary particle spectra:
+# u:Sc/ClusterScorer/RelativeDose = 1.0
+
+#---------------------------------------------------------------------------------------------------
+# Clustered DNA damage scorer
+#---------------------------------------------------------------------------------------------------
+s:Sc/ClusterScorer/Quantity = "ScoreSDD"
+s:Sc/ClusterScorer/Component = "MyDNA"
+b:Sc/ClusterScorer/PropagateToChildren = "True"
+sv:Sc/ClusterScorer/Modules = Ph/Default/Modules
+sv:Sc/ClusterScorer/OnlyIncludeIfInMaterial = 3 "G4_WATER_HISTONE" "G4_WATER_DNA" "G4_WATER"
+includeFile = supportFiles/DNADamageParameters.txt # defines parameters related to direct and indirect action
+
+# Provide scorer with access to some geometry parameters
+s:Sc/ClusterScorer/DNAMaterialName = Ge/MyDNA/DNAMaterialName
+s:Sc/ClusterScorer/HistoneMaterialName = Ge/MyDNA/HistoneMaterialName
+i:Sc/ClusterScorer/DnaNumNucleosomePerFiber = Ge/MyDNA/DnaNumNucleosomePerFiber
+i:Sc/ClusterScorer/DnaNumBpPerNucleosome = Ge/MyDNA/DnaNumBpPerNucleosome
+i:Sc/ClusterScorer/NumVoxelsPerSide = Ge/MyDNA/NumVoxelsPerSide
+d:Sc/ClusterScorer/VoxelSideLength = Ge/MyDNA/VoxelSideLength nm
+b:Sc/ClusterScorer/BuildNucleus = Ge/MyDNA/BuildNucleus
+
+# Specify whether to terminate simulation once a dose threshold has been exceeded (otherwise use NumberOfHistoriesInRun)
+b:Sc/ClusterScorer/UseDoseThreshold = "True"
+d:Sc/ClusterScorer/TotalDose = 1 Gy # Total dose to be delivered across all secondary particles
+d:Sc/ClusterScorer/DoseThreshold = Sc/ClusterScorer/TotalDose Gy * Sc/ClusterScorer/RelativeDose
+includeFile = supportFiles/spectra/xray_bins.txt
+
+# Options to modify how damage yields are recorded
+b:Sc/ClusterScorer/IncludeDirectDamage = "True"
+b:Sc/ClusterScorer/IncludeIndirectDamage = "True"
+
+b:Sc/ClusterScorer/DsbOnly = "False"
+
+# Output files
+s:Sc/ClusterScorer/OutputType = "ASCII" # Applies to main output file (damage yields) only
+b:Sc/ClusterScorer/OutputToConsole = "True"
+s:Sc/ClusterScorer/PrimaryParticle = So/Example/BeamParticle
+s:Sc/ClusterScorer/IfOutputFileAlreadyExists = "Overwrite"
