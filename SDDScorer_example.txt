@@ -114,8 +114,8 @@ b:Sc/ClusterScorer/BuildNucleus = Ge/MyDNA/BuildNucleus
 
 # Specify whether to terminate simulation once a dose threshold has been exceeded (otherwise use NumberOfHistoriesInRun)
 b:Sc/ClusterScorer/UseDoseThreshold = "True"
-d:Sc/ClusterScorer/TotalDose = 0.01 Gy # Total dose to be delivered across all secondary particles
-d:Sc/ClusterScorer/DoseThreshold = Sc/ClusterScorer/TotalDose Gy * Sc/ClusterScorer/RelativeDose
+d:Sc/ClusterScorer/TotalDose = 0.0000000000000000000001 Gy # Total dose to be delivered across all secondary particles
+d:Sc/ClusterScorer/DoseThreshold = Sc/ClusterScorer/TotalDose Gy * Sc/ClusterScorer/RelativeDose # Needed for real runs
 includeFile = spectra/energy_bins.txt
 
 # Options to modify how damage yields are recorded
@@ -130,10 +130,15 @@ b:Sc/ClusterScorer/OutputToConsole = "True"
 s:Sc/ClusterScorer/PrimaryParticle = So/Example/BeamParticle
 s:Sc/ClusterScorer/IfOutputFileAlreadyExists = "Overwrite"
 
-includeFile = spectra/spectrum_n100keV_inner_electron.txt
-includeFile = relative_doses/reldose_n100keV_inner_electron.txt
+includeFile = spectra/spectrum_n1eV_outer_proton.txt
+includeFile = relative_doses/reldose_n1eV_outer_proton.txt
+
+#s:So/Example/BeamParticle = "proton"
+#dv:So/Example/BeamEnergySpectrumValues = 1 1000000 eV
+#uv:So/Example/BeamEnergySpectrumWeights = 1	1
+
 s:Sc/ClusterScorer/FileAllEvents = "AllEvents.txt"
 s:Sc/ClusterScorer/SDDOutputFile = "SDDOutput.txt"
 s:Sc/ClusterScorer/RealDoseFile =  "RealDoseDep.txt"
-i:Ts/Seed = 12345
+i:Ts/Seed = 12346
 i:Ts/NumberOfThreads = 10

@@ -212,7 +212,7 @@ def run_checker(SimType,ressource_table, NumDamageRepeat, NumRepairRepeat):
                 write_sbatch_file(sbatch_filename, time, memory, JobName, nThreads, JobArray, SimType)
 
 
-def run_aggregator(ressource_table, NumDamageRepeat, NumRepairRepeat = 0):
+def run_aggregator(ressource_table, NumDamageRepeat, eps, NumRepairRepeat = 0):
 
 
     if NumRepairRepeat == 0: 
@@ -239,14 +239,28 @@ def run_aggregator(ressource_table, NumDamageRepeat, NumRepairRepeat = 0):
                     RealDose = add_RealDose(rd)
 
                     if dsb_success:
-                        DSBs, ComplexCluster, BaioccoCluster, GeomCluster =  clusterer(dsb)
+                        
+                        EndPoints =  clusterer(dsb,eps)
 
                         with open(FinalFile, "a") as f2:
-                            f2.write(str(SimNumber) + "," + str(DSBs) + "," + str(ComplexCluster) + "," +  str(BaioccoCluster) + "," +  str(GeomCluster) + "," + str(RealDose) + "\n")
+
+                            OuputLine = str(SimNumber)
+                            for endpoint in EndPoints:
+                                OuputLine += "," + str(int(endpoint))
+                            OuputLine += "," +str(RealDose) + "\n"
+
+                            f2.write(OuputLine)
 
                     if rd_success and not dsb_success:
                         with open(FinalFile, "a") as f2:
-                            f2.write(str(SimNumber) +  ",0,0,0,0," + str(RealDose) + "\n")
+
+                            OuputLine = str(SimNumber)
+                            for endpoint in EndPoints:
+                                OuputLine += ",0"
+                            OuputLine += ","+str(RealDose) + "\n"
+
+                            f2.write(OuputLine)
+
 
 
     if NumRepairRepeat > 0: 
