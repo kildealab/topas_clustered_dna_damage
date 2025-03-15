@@ -1489,7 +1489,9 @@ void ScoreSDD::RecordBlock(G4int EventID, std::vector<std::array<G4int,3>> block
 	std::vector<std::array<G4int,3>> FullBreak;
 	G4int FirstBP = block[0][0];
 
-	G4String field7 = std::to_string((block[0][0]-FirstBP+1)) +", "+ std::to_string(block[0][1]) +", "+ std::to_string(block[0][2]+1);
+	//I messed up the order things go in the de SSD file, so block[i][0] is the bp pair number (1 to 10), block[i][1] is the position on 
+	// the base pair (1 to 4) and block[i][2] is the damage type. Howerved in field 7 it should go block[i][1],block[i][0],block[i][2]
+	G4String field7 = std::to_string(block[0][1]) +", "+ std::to_string((block[0][0]-FirstBP+1)) +", "+ std::to_string(block[0][2]+1);
 
 	//Field 6&7
 	for (int i = 0; i < block.size(); i++) {
@@ -1515,7 +1517,7 @@ void ScoreSDD::RecordBlock(G4int EventID, std::vector<std::array<G4int,3>> block
 
 		if (i > 0){
 			//Field 7
-			field7 += " / " + std::to_string((block[i][0]-FirstBP+1)) +", "+ std::to_string(block[i][1]) +", "+ std::to_string(block[i][2]+1);
+			field7 += " / " + std::to_string(block[i][1]) +", "+ std::to_string((block[i][0]-FirstBP+1)) +", "+ std::to_string(block[i][2]+1);
 			}
 		}
 
