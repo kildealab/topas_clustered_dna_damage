@@ -2,7 +2,7 @@
 
 ![Logo](https://github.com/McGillMedPhys/clustered_dna_damage/blob/dev/repository_logo_figure.svg)
 
-This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage due to the direct and indirect action of ionizing radiation.
+This repository contains a TOPAS-nBio application that can be used to simulate clustered DNA damage due to the direct and indirect action of ionizing radiation or to generate an SDD file.
 
 * v2: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6972469.svg)](https://doi.org/10.5281/zenodo.6972469)
 * v1: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5090104.svg)](https://doi.org/10.5281/zenodo.5090104)
@@ -22,9 +22,9 @@ This repository contains a TOPAS-nBio application that can be used to simulate c
 
 ## Authors
 
-Logan Montgomery, Christopher M Lund, James Manalad, Anthony Landry, John Kildea
+Nicolas Desjardins, Logan Montgomery, Christopher M Lund, James Manalad, Anthony Landry, John Kildea
 
-Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
+Contact email: nicolas.desjardins-proulx@mail.mcgill.ca, james.manalad@mail.mcgill.ca, logan.montgomery@mail.mcgill.ca
 
 ## Features
 
@@ -41,7 +41,12 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 
 * This application is intended to be used to simulate the induction of clustered DNA damage in a human nucleus.
 * We developed this application to compare neutron-induced direct and indirect clustered DNA damage with x-ray induced DNA damage in order to invesigate the energy dependence of neutron RBE.
-* Specifically, the application produces yields of the following DNA damage:
+
+* There is two scorers:
+
+### ClusteredDNADamage (ScoreClusteredDNADamage.cc)
+
+* This scorer produces:
     1. Single strand breaks (SSBs)
     2. Base lesions
     3. Double strand breaks (DSBs)
@@ -50,14 +55,14 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * Most simulation parameters can be modified using the included [parameter file](https://github.com/McGillMedPhys/topas_clustered_dna_damage/blob/indirect/DNAParameters.txt).
 * Details about each component of this application are provided [below](#component-details).
 
-* Additionally we provide a scorer that output SDD files which are described in Schuemann et al. 2019 (https://doi.org/10.1667/RR15209.1). From the SDD file a compagnon python script provides a count of Complex DSB clusters as decribed above as well as a count of DSB clusters as descibed in Baiocco et al. 2016 (doi:10.1038/srep34033). 
+### ScoreSDD (ScoreSDD.cc)
+* This scorer output SDD files which are described in Schuemann et al. 2019 (https://doi.org/10.1667/RR15209.1). From the SDD file a compagnon python script provides a count of Complex DSB clusters as decribed above, a count of DSB clusters as descibed in Baiocco et al. 2016 (doi:10.1038/srep34033) and a count for. 
 
 ## Dependencies
 
 * TOPAS v3.6.1
 * TOPAS-nBio 1.0
 
-**Note**: This application was developed on Ubuntu 20.04.2.
 
 ## Installation
 
@@ -146,8 +151,8 @@ Contact email: logan.montgomery@mail.mcgill.ca, james.manalad@mail.mcgill.ca
 * NOTE: Even provided the same seed, events using the Clustered DNA damage scorer andd the SDD Scorer will be different because added operations in the SDD scorer. 
 
 ### SDD-to-cluster python script
-* Source code file is located [here](https://github.com/McGillMedPhys/clustered_dna_damage/blob/master/physics/G4EmDNAPhysics_option2and4.cc).
-* This script contains the function 'clusterer(SDD_file_path)' which takes the file path of an SDD and return three values in that order: total number of DSBs, Complex DSB clusters (Montgomery et al. 2021), and DSB clusters (Baiocco et al. 2016). 
+* Source code file is located [here](https://github.com/kildealab/topas_clustered_dna_damage/blob/repair/payload/UserFile.py).
+* Trigerring the function "run_aggregator()" in the "UserFile.py" will create from the SDD files will generate files with the following counts: total number of DSBs, Complex DSB clusters (Montgomery et al. 2021), and DSB clusters (Baiocco et al. 2016) and nearby DSBs pair in the order of Eucledian distance provided in the array "eps". 
 * NOTE: This script was written to read SDD as our scorer outputs them. Change in the number of field or fomat of fields will lead to an error. 
 
 
